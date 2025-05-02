@@ -1,5 +1,6 @@
 module Api.SimulationList exposing (getSimulations)
 
+import Config
 import Http
 import Json.Decode
 
@@ -13,17 +14,13 @@ type alias Error =
     { message : String }
 
 
-host =
-    "http://127.0.0.1:8000"
-
-
 getSimulations :
     { onResponse : Result Http.Error (List Simulation) -> msg
     }
     -> Cmd msg
 getSimulations options =
     Http.get
-        { url = host ++ "/api/v1/getSimulations"
+        { url = Config.host ++ "/api/v1/getSimulations"
 
         {- , expect =
            Http.expectStringResponse

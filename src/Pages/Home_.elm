@@ -2,6 +2,7 @@ module Pages.Home_ exposing (Model, Msg, page)
 
 import Api
 import Api.SimulationList
+import Components.Header
 import Html exposing (Html)
 import Html.Attributes exposing (alt, class, href, src, width)
 import Http
@@ -69,11 +70,8 @@ subscriptions model =
 
 view : Model -> View Msg
 view model =
-    { title = "Simulations"
-    , body =
-        [ Html.div [ class "hero py-6 has-text-centered" ]
-            [ Html.img [ src "/mdrepo.png", width 200 ] []
-            , Html.a [ Route.Path.href Route.Path.Explore ] [ Html.text "Explore" ]
-            ]
-        ]
-    }
+    Components.Header.view
+        { title = "Simulations"
+        , body =
+            [ Html.text "Hello" ]
+        }

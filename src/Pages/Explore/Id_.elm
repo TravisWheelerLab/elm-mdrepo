@@ -1,12 +1,15 @@
 module Pages.Explore.Id_ exposing (Model, Msg, page)
 
 import Api
+import Components.Header
+import Config
 import Effect exposing (Effect)
 import Html
-import Html.Attributes exposing (class)
+import Html.Attributes exposing (class, src, width)
 import Http
 import Json.Decode as Decode exposing (Decoder, decodeString, float, int, nullable, string)
 import Json.Decode.Pipeline exposing (hardcoded, optional, required)
+import Layouts
 import Maybe exposing (..)
 import Page exposing (Page)
 import RemoteData exposing (RemoteData, WebData)
@@ -149,7 +152,7 @@ init route _ =
     ( { simulationData = RemoteData.NotAsked }
     , Effect.sendCmd <|
         Http.get
-            { url = "http://localhost:8000/api/v1/getSimulations/" ++ route.params.id
+            { url = Config.host ++ "/api/v1/getSimulations/" ++ route.params.id
             , expect = Http.expectJson SimulationApiResponded simulationDecoder
             }
     )
@@ -228,9 +231,10 @@ view model =
                 RemoteData.Failure err ->
                     Html.text <| "Got error: " ++ Api.toUserFriendlyMessage err
     in
-    { title = "View Simulation"
-    , body = [ body ]
-    }
+    Components.Header.view
+        { title = "View Simulation"
+        , body = [ body ]
+        }
 
 
 viewSimulation : Simulation -> Html.Html msg
@@ -262,6 +266,30 @@ viewSimulation simulation =
                     , Html.td
                         []
                         [ Html.text <| withDefault "NA" simulation.description ]
+                    ]
+                , Html.tr []
+                    [ Html.th []
+                        [ Html.text "Thumbnail" ]
+                    , Html.td
+                        []
+                        [ Html.img
+                            [ src <| Config.mediaHost ++ "/" ++ simulation.guid ++ "/thumbnail.png"
+                            , width 200
+                            ]
+                            []
+                        ]
+                    ]
+                , Html.tr []
+                    [ Html.th []
+                        [ Html.text "Preview" ]
+                    , Html.td
+                        []
+                        [ Html.img
+                            [ src <| Config.mediaHost ++ "/" ++ simulation.guid ++ "/preview.gif"
+                            , width 200
+                            ]
+                            []
+                        ]
                     ]
                 ]
             ]
