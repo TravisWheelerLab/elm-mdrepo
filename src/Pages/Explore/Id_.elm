@@ -152,7 +152,7 @@ init route _ =
     ( { simulationData = RemoteData.NotAsked }
     , Effect.sendCmd <|
         Http.get
-            { url = Config.host ++ "/api/v1/getSimulations/" ++ route.params.id
+            { url = Config.apiHost ++ "/getSimulations/" ++ route.params.id
             , expect = Http.expectJson SimulationApiResponded simulationDecoder
             }
     )

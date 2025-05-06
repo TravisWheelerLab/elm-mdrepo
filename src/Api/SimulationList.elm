@@ -20,7 +20,7 @@ getSimulations :
     -> Cmd msg
 getSimulations options =
     Http.get
-        { url = Config.host ++ "/api/v1/getSimulations"
+        { url = Config.apiHost ++ "/getSimulations"
 
         {- , expect =
            Http.expectStringResponse

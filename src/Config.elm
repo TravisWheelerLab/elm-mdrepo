@@ -1,9 +1,12 @@
 module Config exposing (..)
 
+--host =
+--    "https://staging.mdrepo.org"
 
-host =
-    "https://staging.mdrepo.org"
+
+apiHost =
+    "http://localhost:8000/api/v1"
 
 
 mediaHost =
-    "https://stagingassets.mdrepo.org"
+    "https://assets.mdrepo.org"
