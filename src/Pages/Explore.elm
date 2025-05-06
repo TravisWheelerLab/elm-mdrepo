@@ -6,8 +6,8 @@ import Components.Header
 import Config
 import Effect exposing (Effect)
 import Html exposing (Html)
-import Html.Attributes exposing (class, href, selected, src, type_, width)
-import Html.Events exposing (onClick, onInput)
+import Html.Attributes exposing (checked, class, href, selected, src, type_, width)
+import Html.Events exposing (onCheck, onInput)
 import Http
 import Json.Decode as Decode exposing (Decoder, decodeString, float, int, nullable, string)
 import Json.Decode.Pipeline exposing (hardcoded, optional, required)
@@ -87,6 +87,7 @@ type alias ExploreRequest =
 -- TODO: Effect.sendApiRequest?
 
 
+initialModel : Model
 initialModel =
     { recordCount = Nothing
     , simulations = RemoteData.NotAsked
@@ -200,6 +201,7 @@ type Msg
     | UpdatePageNumber String
     | UpdateTextSearch String
     | ToggleSimulationSelection Int Bool
+    | ToggleAllSimulations Bool
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
@@ -288,14 +290,30 @@ update msg model =
             , requestData newModel
             )
 
-        ToggleSimulationSelection simulationId selected ->
+        ToggleAllSimulations checked ->
             let
-                newIds =
-                    if selected then
-                        List.filter (\id -> id /= simulationId) model.selectedSimulationIds
+                selectedSimulationIds =
+                    if checked then
+                        case model.simulations of
+                            RemoteData.Success sims ->
+                                List.map .id sims
+
+                            _ ->
+                                []
 
                     else
+                        []
+            in
+            ( { model | selectedSimulationIds = selectedSimulationIds }, Effect.none )
+
+        ToggleSimulationSelection simulationId isChecked ->
+            let
+                newIds =
+                    if isChecked then
                         model.selectedSimulationIds ++ [ simulationId ]
+
+                    else
+                        List.filter ((/=) simulationId) model.selectedSimulationIds
             in
             ( { model | selectedSimulationIds = newIds }, Effect.none )
 
@@ -322,7 +340,7 @@ view model =
                 RemoteData.Success simulations ->
                     Html.div []
                         [ pagination model
-                        , viewSimulations simulations
+                        , viewSimulations simulations model.selectedSimulationIds
                         ]
 
                 RemoteData.Failure err ->
@@ -419,13 +437,19 @@ pagination model =
         ]
 
 
-viewSimulations : List Simulation -> Html Msg
-viewSimulations simulations =
+viewSimulations : List Simulation -> List Int -> Html Msg
+viewSimulations simulations selectedSimulationIds =
     let
         header =
             Html.thead []
                 [ Html.tr []
-                    [ Html.th [] [ Html.text "Select" ]
+                    [ Html.th []
+                        [ Html.input
+                            [ type_ "checkbox"
+                            , onCheck ToggleAllSimulations
+                            ]
+                            []
+                        ]
                     , Html.th [] [ Html.text "Index" ]
                     , Html.th [] [ Html.text "Thumbnail" ]
                     , Html.th [] [ Html.text "Description" ]
@@ -439,7 +463,7 @@ viewSimulations simulations =
         rows =
             Html.tbody []
                 (List.indexedMap
-                    viewSimulation
+                    (viewSimulation selectedSimulationIds)
                     simulations
                 )
     in
@@ -452,13 +476,14 @@ viewSimulations simulations =
         ]
 
 
-viewSimulation : Int -> Simulation -> Html Msg
-viewSimulation index simulation =
+viewSimulation : List Int -> Int -> Simulation -> Html Msg
+viewSimulation selectedSimulationIds index simulation =
     Html.tr []
         [ Html.td []
             [ Html.input
                 [ type_ "checkbox"
-                , onClick ToggleSimulationSelection simulation.id
+                , onCheck (ToggleSimulationSelection simulation.id)
+                , checked (List.member simulation.id selectedSimulationIds)
                 ]
                 []
             ]
