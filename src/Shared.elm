@@ -12,10 +12,12 @@ module Shared exposing
 
 -}
 
+--import Route.Path
+
 import Effect exposing (Effect)
-import Json.Decode
+import Json.Decode exposing (Decoder, nullable, string)
+import Json.Decode.Pipeline exposing (optional)
 import Route exposing (Route)
-import Route.Path
 import Shared.Model
 import Shared.Msg
 
@@ -25,12 +27,26 @@ import Shared.Msg
 
 
 type alias Flags =
-    {}
+    { orcidClientId : Maybe String
+    , orcidClientSecret : Maybe String
+    , api_host : Maybe String
+    , media_host : Maybe String
+    }
+
+
+
+--decoder : Json.Decode.Decoder Flags
+--decoder =
+-- Json.Decode.succeed {}
 
 
 decoder : Json.Decode.Decoder Flags
 decoder =
-    Json.Decode.succeed {}
+    Json.Decode.succeed Flags
+        |> optional "ORCID_CLIENT_ID" (nullable string) Nothing
+        |> optional "ORCID_CLIENT_SECRET" (nullable string) Nothing
+        |> optional "API_HOST" (nullable string) Nothing
+        |> optional "MEDIA_HOST" (nullable string) Nothing
 
 
 
@@ -43,6 +59,10 @@ type alias Model =
 
 init : Result Json.Decode.Error Flags -> Route () -> ( Model, Effect Msg )
 init flagsResult route =
+    let
+        _ =
+            Debug.log "FLAGS" flagsResult
+    in
     ( {}
     , Effect.none
     )
