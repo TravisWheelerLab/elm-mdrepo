@@ -68,7 +68,7 @@ subscriptions model =
 view : Model -> View Msg
 view model =
     Components.Header.view
-        { title = "Pages.About"
+        { title = "MDRepo - About"
         , body =
             [ Html.div [ class "card" ]
                 [ Html.header [ class "card-header" ]

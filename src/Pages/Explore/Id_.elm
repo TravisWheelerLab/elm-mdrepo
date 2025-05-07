@@ -232,7 +232,7 @@ view model =
                     Html.text <| "Got error: " ++ Api.toUserFriendlyMessage err
     in
     Components.Header.view
-        { title = "View Simulation"
+        { title = "MDRepo - View Simulation"
         , body = [ body ]
         }
 

@@ -403,7 +403,7 @@ subscriptions model =
 view : Model -> View Msg
 view model =
     Components.Header.view
-        { title = "Simulations"
+        { title = "MDRepo - Explore"
         , body =
             [ case model.simulations of
                 RemoteData.Success simulations ->
