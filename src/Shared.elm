@@ -12,12 +12,11 @@ module Shared exposing
 
 -}
 
---import Route.Path
-
 import Effect exposing (Effect)
 import Json.Decode exposing (Decoder, nullable, string)
 import Json.Decode.Pipeline exposing (optional)
 import Route exposing (Route)
+import Route.Path
 import Shared.Model
 import Shared.Msg
 
@@ -29,8 +28,8 @@ import Shared.Msg
 type alias Flags =
     { orcidClientId : Maybe String
     , orcidClientSecret : Maybe String
-    , api_host : Maybe String
-    , media_host : Maybe String
+    , apiHost : Maybe String
+    , mediaHost : Maybe String
     }
 
 
@@ -62,8 +61,26 @@ init flagsResult route =
     let
         _ =
             Debug.log "FLAGS" flagsResult
+
+        model =
+            case flagsResult of
+                Ok flags ->
+                    { user = Nothing
+                    , orcidClientId = flags.orcidClientId
+                    , orcidClientSecret = flags.orcidClientSecret
+                    , apiHost = flags.apiHost
+                    , mediaHost = flags.mediaHost
+                    }
+
+                _ ->
+                    { user = Nothing
+                    , orcidClientId = Nothing
+                    , orcidClientSecret = Nothing
+                    , apiHost = Nothing
+                    , mediaHost = Nothing
+                    }
     in
-    ( {}
+    ( model
     , Effect.none
     )
 
