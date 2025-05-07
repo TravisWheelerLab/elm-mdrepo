@@ -39,6 +39,9 @@ view props =
                     , Html.a
                         [ class "navbar-item", Route.Path.href Route.Path.Explore ]
                         [ Html.text "Explore" ]
+                    , Html.a
+                        [ class "navbar-item", Route.Path.href Route.Path.Profile ]
+                        [ Html.text "Profile" ]
                     , Html.div
                         [ class "navbar-item" ]
                         [ Html.button [ class "button is-primary" ] [ Html.text "Login" ] ]

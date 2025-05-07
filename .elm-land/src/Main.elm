@@ -18,6 +18,8 @@ import Pages.Home_
 import Pages.About
 import Pages.Explore
 import Pages.Explore.Id_
+import Pages.Profile
+import Pages.SignIn
 import Pages.NotFound_
 import Pages.NotFound_
 import Route exposing (Route)
@@ -147,6 +149,44 @@ initPageAndLayout model =
                 Tuple.mapBoth
                     (Main.Pages.Model.Explore_Id_ params)
                     (Effect.map Main.Pages.Msg.Explore_Id_ >> fromPageEffect model)
+                    ( pageModel, pageEffect )
+            , layout = Nothing
+            }
+
+        Route.Path.Profile ->
+            runWhenAuthenticatedWithLayout
+                model
+                (\user ->
+                    let
+                        page : Page.Page Pages.Profile.Model Pages.Profile.Msg
+                        page =
+                            Pages.Profile.page user model.shared (Route.fromUrl () model.url)
+
+                        ( pageModel, pageEffect ) =
+                            Page.init page ()
+                    in
+                    { page = 
+                        Tuple.mapBoth
+                            Main.Pages.Model.Profile
+                            (Effect.map Main.Pages.Msg.Profile >> fromPageEffect model)
+                            ( pageModel, pageEffect )
+                    , layout = Nothing
+                    }
+                )
+
+        Route.Path.SignIn ->
+            let
+                page : Page.Page Pages.SignIn.Model Pages.SignIn.Msg
+                page =
+                    Pages.SignIn.page model.shared (Route.fromUrl () model.url)
+
+                ( pageModel, pageEffect ) =
+                    Page.init page ()
+            in
+            { page = 
+                Tuple.mapBoth
+                    Main.Pages.Model.SignIn
+                    (Effect.map Main.Pages.Msg.SignIn >> fromPageEffect model)
                     ( pageModel, pageEffect )
             , layout = Nothing
             }
@@ -402,6 +442,22 @@ updateFromPage msg model =
                 (Effect.map Main.Pages.Msg.Explore_Id_ >> fromPageEffect model)
                 (Page.update (Pages.Explore.Id_.page model.shared (Route.fromUrl params model.url)) pageMsg pageModel)
 
+        ( Main.Pages.Msg.Profile pageMsg, Main.Pages.Model.Profile pageModel ) ->
+            runWhenAuthenticated
+                model
+                (\user ->
+                    Tuple.mapBoth
+                        Main.Pages.Model.Profile
+                        (Effect.map Main.Pages.Msg.Profile >> fromPageEffect model)
+                        (Page.update (Pages.Profile.page user model.shared (Route.fromUrl () model.url)) pageMsg pageModel)
+                )
+
+        ( Main.Pages.Msg.SignIn pageMsg, Main.Pages.Model.SignIn pageModel ) ->
+            Tuple.mapBoth
+                Main.Pages.Model.SignIn
+                (Effect.map Main.Pages.Msg.SignIn >> fromPageEffect model)
+                (Page.update (Pages.SignIn.page model.shared (Route.fromUrl () model.url)) pageMsg pageModel)
+
         ( Main.Pages.Msg.NotFound_ pageMsg, Main.Pages.Model.NotFound_ pageModel ) ->
             Tuple.mapBoth
                 Main.Pages.Model.NotFound_
@@ -454,6 +510,18 @@ toLayoutFromPage model =
                 |> Pages.Explore.Id_.page model.shared
                 |> Page.layout pageModel
                 |> Maybe.map (Layouts.map (Main.Pages.Msg.Explore_Id_ >> Page))
+
+        Main.Pages.Model.Profile pageModel ->
+            Route.fromUrl () model.url
+                |> toAuthProtectedPage model Pages.Profile.page
+                |> Maybe.andThen (Page.layout pageModel)
+                |> Maybe.map (Layouts.map (Main.Pages.Msg.Profile >> Page))
+
+        Main.Pages.Model.SignIn pageModel ->
+            Route.fromUrl () model.url
+                |> Pages.SignIn.page model.shared
+                |> Page.layout pageModel
+                |> Maybe.map (Layouts.map (Main.Pages.Msg.SignIn >> Page))
 
         Main.Pages.Model.NotFound_ pageModel ->
             Route.fromUrl () model.url
@@ -524,6 +592,20 @@ subscriptions model =
                 Main.Pages.Model.Explore_Id_ params pageModel ->
                     Page.subscriptions (Pages.Explore.Id_.page model.shared (Route.fromUrl params model.url)) pageModel
                         |> Sub.map Main.Pages.Msg.Explore_Id_
+                        |> Sub.map Page
+
+                Main.Pages.Model.Profile pageModel ->
+                    Auth.Action.subscriptions
+                        (\user ->
+                            Page.subscriptions (Pages.Profile.page user model.shared (Route.fromUrl () model.url)) pageModel
+                                |> Sub.map Main.Pages.Msg.Profile
+                                |> Sub.map Page
+                        )
+                        (Auth.onPageLoad model.shared (Route.fromUrl () model.url))
+
+                Main.Pages.Model.SignIn pageModel ->
+                    Page.subscriptions (Pages.SignIn.page model.shared (Route.fromUrl () model.url)) pageModel
+                        |> Sub.map Main.Pages.Msg.SignIn
                         |> Sub.map Page
 
                 Main.Pages.Model.NotFound_ pageModel ->
@@ -603,6 +685,20 @@ viewPage model =
         Main.Pages.Model.Explore_Id_ params pageModel ->
             Page.view (Pages.Explore.Id_.page model.shared (Route.fromUrl params model.url)) pageModel
                 |> View.map Main.Pages.Msg.Explore_Id_
+                |> View.map Page
+
+        Main.Pages.Model.Profile pageModel ->
+            Auth.Action.view (View.map never (Auth.viewCustomPage model.shared (Route.fromUrl () model.url)))
+                (\user ->
+                    Page.view (Pages.Profile.page user model.shared (Route.fromUrl () model.url)) pageModel
+                        |> View.map Main.Pages.Msg.Profile
+                        |> View.map Page
+                )
+                (Auth.onPageLoad model.shared (Route.fromUrl () model.url))
+
+        Main.Pages.Model.SignIn pageModel ->
+            Page.view (Pages.SignIn.page model.shared (Route.fromUrl () model.url)) pageModel
+                |> View.map Main.Pages.Msg.SignIn
                 |> View.map Page
 
         Main.Pages.Model.NotFound_ pageModel ->
@@ -698,6 +794,22 @@ toPageUrlHookCmd model routes =
                 |> List.map Page
                 |> toCommands
 
+        Main.Pages.Model.Profile pageModel ->
+            Auth.Action.command
+                (\user ->
+                    Page.toUrlMessages routes (Pages.Profile.page user model.shared (Route.fromUrl () model.url)) 
+                        |> List.map Main.Pages.Msg.Profile
+                        |> List.map Page
+                        |> toCommands
+                )
+                (Auth.onPageLoad model.shared (Route.fromUrl () model.url))
+
+        Main.Pages.Model.SignIn pageModel ->
+            Page.toUrlMessages routes (Pages.SignIn.page model.shared (Route.fromUrl () model.url)) 
+                |> List.map Main.Pages.Msg.SignIn
+                |> List.map Page
+                |> toCommands
+
         Main.Pages.Model.NotFound_ pageModel ->
             Page.toUrlMessages routes (Pages.NotFound_.page model.shared (Route.fromUrl () model.url)) 
                 |> List.map Main.Pages.Msg.NotFound_
@@ -764,6 +876,12 @@ isAuthProtected routePath =
             False
 
         Route.Path.Explore_Id_ _ ->
+            False
+
+        Route.Path.Profile ->
+            True
+
+        Route.Path.SignIn ->
             False
 
         Route.Path.NotFound_ ->

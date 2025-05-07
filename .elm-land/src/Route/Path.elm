@@ -11,6 +11,8 @@ type Path
     | About
     | Explore
     | Explore_Id_ { id : String }
+    | Profile
+    | SignIn
     | NotFound_
 
 
@@ -45,6 +47,12 @@ fromString urlPath =
                 }
                 |> Just
 
+        "profile" :: [] ->
+            Just Profile
+
+        "sign-in" :: [] ->
+            Just SignIn
+
         _ ->
             Nothing
 
@@ -71,6 +79,12 @@ toString path =
 
                 Explore_Id_ params ->
                     [ "explore", params.id ]
+
+                Profile ->
+                    [ "profile" ]
+
+                SignIn ->
+                    [ "sign-in" ]
 
                 NotFound_ ->
                     [ "404" ]

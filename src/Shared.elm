@@ -65,7 +65,7 @@ init flagsResult route =
         model =
             case flagsResult of
                 Ok flags ->
-                    { user = Nothing
+                    { token = Nothing
                     , orcidClientId = flags.orcidClientId
                     , orcidClientSecret = flags.orcidClientSecret
                     , apiHost = flags.apiHost
@@ -73,7 +73,7 @@ init flagsResult route =
                     }
 
                 _ ->
-                    { user = Nothing
+                    { token = Nothing
                     , orcidClientId = Nothing
                     , orcidClientSecret = Nothing
                     , apiHost = Nothing
