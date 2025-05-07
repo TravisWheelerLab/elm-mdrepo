@@ -1,25 +1,17 @@
 module Pages.Home_ exposing (Model, Msg, page)
 
-import Api
-import Api.SimulationList
 import Components.Header
-import Html exposing (Html)
-import Html.Attributes exposing (alt, class, href, src, width)
-import Http
-import Json.Decode exposing (bool)
+import Effect exposing (Effect)
+import Html
 import Page exposing (Page)
-import Route.Path
-import String
+import Route exposing (Route)
+import Shared
 import View exposing (View)
 
 
-type alias Model =
-    {}
-
-
-page : Page Model Msg
-page =
-    Page.element
+page : Shared.Model -> Route () -> Page Model Msg
+page shared route =
+    Page.new
         { init = init
         , update = update
         , subscriptions = subscriptions
@@ -27,10 +19,18 @@ page =
         }
 
 
-init : ( Model, Cmd Msg )
-init =
+
+-- INIT
+
+
+type alias Model =
+    {}
+
+
+init : () -> ( Model, Effect Msg )
+init () =
     ( {}
-    , Cmd.none
+    , Effect.none
     )
 
 
@@ -42,16 +42,12 @@ type Msg
     = NoOp
 
 
-
--- SimulationApiResponded (Result (List { message : String }) (List Simulation))
-
-
-update : Msg -> Model -> ( Model, Cmd Msg )
+update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
         NoOp ->
-            ( {}
-            , Cmd.none
+            ( model
+            , Effect.none
             )
 
 
@@ -71,7 +67,8 @@ subscriptions model =
 view : Model -> View Msg
 view model =
     Components.Header.view
-        { title = "Simulations"
+        { title = "Pages.Home_"
         , body =
-            [ Html.text "Hello" ]
+            [ Html.text "/"
+            ]
         }
