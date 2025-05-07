@@ -8,6 +8,7 @@ import Url.Parser exposing ((</>))
 
 type Path
     = Home_
+    | About
     | Explore
     | Explore_Id_ { id : String }
     | NotFound_
@@ -31,6 +32,9 @@ fromString urlPath =
     case urlPathSegments of
         [] ->
             Just Home_
+
+        "about" :: [] ->
+            Just About
 
         "explore" :: [] ->
             Just Explore
@@ -58,6 +62,9 @@ toString path =
             case path of
                 Home_ ->
                     []
+
+                About ->
+                    [ "about" ]
 
                 Explore ->
                     [ "explore" ]
