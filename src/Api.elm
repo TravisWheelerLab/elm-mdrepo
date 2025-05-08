@@ -36,6 +36,6 @@ toUserFriendlyMessage httpError =
             else
                 "API returned an error code (" ++ String.fromInt code ++ ")"
 
-        Http.BadBody _ ->
+        Http.BadBody message ->
             -- Our JSON decoder didn't match what the API sent
-            "Unexpected response from API"
+            message
