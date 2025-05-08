@@ -59,9 +59,6 @@ type alias Model =
 init : Result Json.Decode.Error Flags -> Route () -> ( Model, Effect Msg )
 init flagsResult route =
     let
-        _ =
-            Debug.log "FLAGS" flagsResult
-
         model =
             case flagsResult of
                 Ok flags ->
