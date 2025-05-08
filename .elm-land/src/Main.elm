@@ -18,8 +18,10 @@ import Pages.Home_
 import Pages.About
 import Pages.Explore
 import Pages.Explore.Id_
+import Pages.Metadata
 import Pages.Profile
 import Pages.SignIn
+import Pages.Uploads
 import Pages.NotFound_
 import Pages.NotFound_
 import Route exposing (Route)
@@ -153,6 +155,23 @@ initPageAndLayout model =
             , layout = Nothing
             }
 
+        Route.Path.Metadata ->
+            let
+                page : Page.Page Pages.Metadata.Model Pages.Metadata.Msg
+                page =
+                    Pages.Metadata.page model.shared (Route.fromUrl () model.url)
+
+                ( pageModel, pageEffect ) =
+                    Page.init page ()
+            in
+            { page = 
+                Tuple.mapBoth
+                    Main.Pages.Model.Metadata
+                    (Effect.map Main.Pages.Msg.Metadata >> fromPageEffect model)
+                    ( pageModel, pageEffect )
+            , layout = Nothing
+            }
+
         Route.Path.Profile ->
             runWhenAuthenticatedWithLayout
                 model
@@ -187,6 +206,23 @@ initPageAndLayout model =
                 Tuple.mapBoth
                     Main.Pages.Model.SignIn
                     (Effect.map Main.Pages.Msg.SignIn >> fromPageEffect model)
+                    ( pageModel, pageEffect )
+            , layout = Nothing
+            }
+
+        Route.Path.Uploads ->
+            let
+                page : Page.Page Pages.Uploads.Model Pages.Uploads.Msg
+                page =
+                    Pages.Uploads.page model.shared (Route.fromUrl () model.url)
+
+                ( pageModel, pageEffect ) =
+                    Page.init page ()
+            in
+            { page = 
+                Tuple.mapBoth
+                    Main.Pages.Model.Uploads
+                    (Effect.map Main.Pages.Msg.Uploads >> fromPageEffect model)
                     ( pageModel, pageEffect )
             , layout = Nothing
             }
@@ -442,6 +478,12 @@ updateFromPage msg model =
                 (Effect.map Main.Pages.Msg.Explore_Id_ >> fromPageEffect model)
                 (Page.update (Pages.Explore.Id_.page model.shared (Route.fromUrl params model.url)) pageMsg pageModel)
 
+        ( Main.Pages.Msg.Metadata pageMsg, Main.Pages.Model.Metadata pageModel ) ->
+            Tuple.mapBoth
+                Main.Pages.Model.Metadata
+                (Effect.map Main.Pages.Msg.Metadata >> fromPageEffect model)
+                (Page.update (Pages.Metadata.page model.shared (Route.fromUrl () model.url)) pageMsg pageModel)
+
         ( Main.Pages.Msg.Profile pageMsg, Main.Pages.Model.Profile pageModel ) ->
             runWhenAuthenticated
                 model
@@ -457,6 +499,12 @@ updateFromPage msg model =
                 Main.Pages.Model.SignIn
                 (Effect.map Main.Pages.Msg.SignIn >> fromPageEffect model)
                 (Page.update (Pages.SignIn.page model.shared (Route.fromUrl () model.url)) pageMsg pageModel)
+
+        ( Main.Pages.Msg.Uploads pageMsg, Main.Pages.Model.Uploads pageModel ) ->
+            Tuple.mapBoth
+                Main.Pages.Model.Uploads
+                (Effect.map Main.Pages.Msg.Uploads >> fromPageEffect model)
+                (Page.update (Pages.Uploads.page model.shared (Route.fromUrl () model.url)) pageMsg pageModel)
 
         ( Main.Pages.Msg.NotFound_ pageMsg, Main.Pages.Model.NotFound_ pageModel ) ->
             Tuple.mapBoth
@@ -511,6 +559,12 @@ toLayoutFromPage model =
                 |> Page.layout pageModel
                 |> Maybe.map (Layouts.map (Main.Pages.Msg.Explore_Id_ >> Page))
 
+        Main.Pages.Model.Metadata pageModel ->
+            Route.fromUrl () model.url
+                |> Pages.Metadata.page model.shared
+                |> Page.layout pageModel
+                |> Maybe.map (Layouts.map (Main.Pages.Msg.Metadata >> Page))
+
         Main.Pages.Model.Profile pageModel ->
             Route.fromUrl () model.url
                 |> toAuthProtectedPage model Pages.Profile.page
@@ -522,6 +576,12 @@ toLayoutFromPage model =
                 |> Pages.SignIn.page model.shared
                 |> Page.layout pageModel
                 |> Maybe.map (Layouts.map (Main.Pages.Msg.SignIn >> Page))
+
+        Main.Pages.Model.Uploads pageModel ->
+            Route.fromUrl () model.url
+                |> Pages.Uploads.page model.shared
+                |> Page.layout pageModel
+                |> Maybe.map (Layouts.map (Main.Pages.Msg.Uploads >> Page))
 
         Main.Pages.Model.NotFound_ pageModel ->
             Route.fromUrl () model.url
@@ -594,6 +654,11 @@ subscriptions model =
                         |> Sub.map Main.Pages.Msg.Explore_Id_
                         |> Sub.map Page
 
+                Main.Pages.Model.Metadata pageModel ->
+                    Page.subscriptions (Pages.Metadata.page model.shared (Route.fromUrl () model.url)) pageModel
+                        |> Sub.map Main.Pages.Msg.Metadata
+                        |> Sub.map Page
+
                 Main.Pages.Model.Profile pageModel ->
                     Auth.Action.subscriptions
                         (\user ->
@@ -606,6 +671,11 @@ subscriptions model =
                 Main.Pages.Model.SignIn pageModel ->
                     Page.subscriptions (Pages.SignIn.page model.shared (Route.fromUrl () model.url)) pageModel
                         |> Sub.map Main.Pages.Msg.SignIn
+                        |> Sub.map Page
+
+                Main.Pages.Model.Uploads pageModel ->
+                    Page.subscriptions (Pages.Uploads.page model.shared (Route.fromUrl () model.url)) pageModel
+                        |> Sub.map Main.Pages.Msg.Uploads
                         |> Sub.map Page
 
                 Main.Pages.Model.NotFound_ pageModel ->
@@ -687,6 +757,11 @@ viewPage model =
                 |> View.map Main.Pages.Msg.Explore_Id_
                 |> View.map Page
 
+        Main.Pages.Model.Metadata pageModel ->
+            Page.view (Pages.Metadata.page model.shared (Route.fromUrl () model.url)) pageModel
+                |> View.map Main.Pages.Msg.Metadata
+                |> View.map Page
+
         Main.Pages.Model.Profile pageModel ->
             Auth.Action.view (View.map never (Auth.viewCustomPage model.shared (Route.fromUrl () model.url)))
                 (\user ->
@@ -699,6 +774,11 @@ viewPage model =
         Main.Pages.Model.SignIn pageModel ->
             Page.view (Pages.SignIn.page model.shared (Route.fromUrl () model.url)) pageModel
                 |> View.map Main.Pages.Msg.SignIn
+                |> View.map Page
+
+        Main.Pages.Model.Uploads pageModel ->
+            Page.view (Pages.Uploads.page model.shared (Route.fromUrl () model.url)) pageModel
+                |> View.map Main.Pages.Msg.Uploads
                 |> View.map Page
 
         Main.Pages.Model.NotFound_ pageModel ->
@@ -794,6 +874,12 @@ toPageUrlHookCmd model routes =
                 |> List.map Page
                 |> toCommands
 
+        Main.Pages.Model.Metadata pageModel ->
+            Page.toUrlMessages routes (Pages.Metadata.page model.shared (Route.fromUrl () model.url)) 
+                |> List.map Main.Pages.Msg.Metadata
+                |> List.map Page
+                |> toCommands
+
         Main.Pages.Model.Profile pageModel ->
             Auth.Action.command
                 (\user ->
@@ -807,6 +893,12 @@ toPageUrlHookCmd model routes =
         Main.Pages.Model.SignIn pageModel ->
             Page.toUrlMessages routes (Pages.SignIn.page model.shared (Route.fromUrl () model.url)) 
                 |> List.map Main.Pages.Msg.SignIn
+                |> List.map Page
+                |> toCommands
+
+        Main.Pages.Model.Uploads pageModel ->
+            Page.toUrlMessages routes (Pages.Uploads.page model.shared (Route.fromUrl () model.url)) 
+                |> List.map Main.Pages.Msg.Uploads
                 |> List.map Page
                 |> toCommands
 
@@ -878,10 +970,16 @@ isAuthProtected routePath =
         Route.Path.Explore_Id_ _ ->
             False
 
+        Route.Path.Metadata ->
+            False
+
         Route.Path.Profile ->
             True
 
         Route.Path.SignIn ->
+            False
+
+        Route.Path.Uploads ->
             False
 
         Route.Path.NotFound_ ->

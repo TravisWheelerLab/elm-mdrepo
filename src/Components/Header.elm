@@ -6,12 +6,6 @@ import Route.Path
 import View exposing (View)
 
 
-
-{- Html.a [ Route.Path.href Route.Path.Explore ]
-   [ Html.text "Explore" ]
--}
-
-
 view :
     { title : String
     , body : List (Html msg)
@@ -33,18 +27,53 @@ view props =
                 ]
             , Html.div [ class "navbar-menu" ]
                 [ Html.div [ class "navbar-end" ]
-                    [ Html.a
-                        [ class "navbar-item", Route.Path.href Route.Path.About ]
-                        [ Html.text "About" ]
-                    , Html.a
-                        [ class "navbar-item", Route.Path.href Route.Path.Explore ]
-                        [ Html.text "Explore" ]
-                    , Html.a
-                        [ class "navbar-item", Route.Path.href Route.Path.Profile ]
-                        [ Html.text "Profile" ]
+                    [ Html.div
+                        [ class "navbar-item" ]
+                        [ Html.a
+                            [ class "button"
+                            , Route.Path.href Route.Path.About
+                            ]
+                            [ Html.text "About" ]
+                        ]
                     , Html.div
                         [ class "navbar-item" ]
-                        [ Html.button [ class "button is-primary" ] [ Html.text "Login" ] ]
+                        [ Html.a
+                            [ class "button", Route.Path.href Route.Path.Explore ]
+                            [ Html.text "Explore" ]
+                        ]
+                    , Html.div
+                        [ class "navbar-item" ]
+                        [ Html.a
+                            [ class "button"
+                            , Route.Path.href Route.Path.Profile
+                            ]
+                            [ Html.text "Profile" ]
+                        ]
+                    , Html.div
+                        [ class "navbar-item has-dropdown is-hoverable" ]
+                        [ Html.a [ class "navbar-link" ] [ Html.text "Contribute" ]
+                        , Html.div
+                            [ class "navbar-dropdown" ]
+                            [ Html.div
+                                [ class "navbar-item" ]
+                                [ Html.a
+                                    [ Route.Path.href Route.Path.Uploads ]
+                                    [ Html.text "Upload Tokens" ]
+                                ]
+                            , Html.div
+                                [ class "navbar-item" ]
+                                [ Html.a
+                                    [ Route.Path.href Route.Path.Metadata ]
+                                    [ Html.text "Create Metadata" ]
+                                ]
+                            ]
+                        ]
+                    , Html.div
+                        [ class "navbar-item" ]
+                        [ Html.a
+                            [ class "button is-primary", Route.Path.href Route.Path.SignIn ]
+                            [ Html.text "Login" ]
+                        ]
                     ]
                 ]
             ]

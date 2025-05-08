@@ -63,6 +63,7 @@ subscriptions model =
 
 
 -- VIEW
+-- https://orcid.org/signin?client_id=APP-SRX6BHEN9JIX6K7I&redirect_uri=http:%2F%2Fmdrepo.org%2Fapi%2Faccounts%2Forcid%2Flogin%2Fcallback%2F&scope=%2Fauthenticate&response_type=code&state=NUO8LqLcOE6W
 
 
 view : Shared.Model -> Model -> View Msg

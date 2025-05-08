@@ -11,8 +11,10 @@ type Path
     | About
     | Explore
     | Explore_Id_ { id : String }
+    | Metadata
     | Profile
     | SignIn
+    | Uploads
     | NotFound_
 
 
@@ -47,11 +49,17 @@ fromString urlPath =
                 }
                 |> Just
 
+        "metadata" :: [] ->
+            Just Metadata
+
         "profile" :: [] ->
             Just Profile
 
         "sign-in" :: [] ->
             Just SignIn
+
+        "uploads" :: [] ->
+            Just Uploads
 
         _ ->
             Nothing
@@ -80,11 +88,17 @@ toString path =
                 Explore_Id_ params ->
                     [ "explore", params.id ]
 
+                Metadata ->
+                    [ "metadata" ]
+
                 Profile ->
                     [ "profile" ]
 
                 SignIn ->
                     [ "sign-in" ]
+
+                Uploads ->
+                    [ "uploads" ]
 
                 NotFound_ ->
                     [ "404" ]
