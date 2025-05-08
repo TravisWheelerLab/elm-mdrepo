@@ -67,19 +67,28 @@ subscriptions model =
 
 view : Shared.Model -> Model -> View Msg
 view shared model =
+    let
+        orcidUrl =
+            "https://qa.orcid.org/oauth/authorize?"
+                ++ "response_type=token"
+                ++ "&redirect_uri=http%3A%2F%2Flocalhost:1234%3Asign-in"
+                ++ "&client_id="
+                ++ Maybe.withDefault "" shared.orcidClientId
+                ++ "&scope=openid&nonce=whatever"
+
+        {-
+           "https://sandbox.orcid.org/oauth/authorize?client_id="
+                                   ++ Maybe.withDefault "" shared.orcidClientId
+                                   ++ "&response_type=code&scope=/read-limited"
+                                   ++ "&redirect_uri=http://localhost:1234"
+        -}
+    in
     Components.Header.view
         { title = "MDRepo - Sign-In"
         , body =
             [ Html.div [ class "container" ]
                 [ Html.div [ class "content" ]
-                    [ Html.a
-                        [ href <|
-                            "https://sandbox.orcid.org/oauth/authorize?client_id="
-                                ++ Maybe.withDefault "" shared.orcidClientId
-                                ++ "&response_type=code&scope=/read-limited"
-                                ++ "&redirect_uri=http://localhost:1234"
-                        ]
-                        [ Html.text "Login with ORCID" ]
+                    [ Html.a [ href orcidUrl ] [ Html.text "Login with ORCID" ]
                     ]
                 ]
             ]
