@@ -1,11 +1,12 @@
 module Pages.Explore exposing (Model, Msg, page)
 
 import Api
+import Char exposing (isAlphaNum)
 import Components.Header
 import Config
 import Effect exposing (Effect)
 import Html exposing (Html)
-import Html.Attributes exposing (checked, class, disabled, name, selected, src, type_, width)
+import Html.Attributes exposing (checked, class, disabled, name, placeholder, selected, src, type_, width)
 import Html.Events exposing (onCheck, onClick, onInput)
 import Http
 import Json.Decode as Decode exposing (Decoder, decodeString, float, int, nullable, string)
@@ -375,6 +376,7 @@ update msg model =
                 newModel =
                     { model
                         | textSearch = textSearch
+                        , selectedSimulationIds = []
                         , pageNumber = 0
                     }
             in
@@ -596,13 +598,22 @@ pagination model =
                        ]
         -}
         downloadButton =
+            let
+                buttonText =
+                    case List.length model.selectedSimulationIds of
+                        0 ->
+                            "Download"
+
+                        num ->
+                            "Download " ++ String.fromInt num
+            in
             Html.div [ class "control" ]
                 [ Html.button
                     [ class "button is-primary"
                     , disabled (List.isEmpty model.selectedSimulationIds)
                     , onClick ShowDownloadDialog
                     ]
-                    [ Html.text "Download" ]
+                    [ Html.text buttonText ]
                 ]
 
         recordCount =
@@ -632,7 +643,11 @@ pagination model =
                             (numPages + 1)
                         )
             in
-            Html.select [ onInput UpdatePageNumber ] options
+            Html.div [ class "control" ]
+                [ Html.text "Page: "
+                , Html.div [ class "select" ]
+                    [ Html.select [ onInput UpdatePageNumber ] options ]
+                ]
 
         pageSizeNav =
             let
@@ -642,9 +657,14 @@ pagination model =
                             Html.option [ selected (model.pageSize == num) ]
                                 [ Html.text (String.fromInt num) ]
                         )
-                        [ 10, 25, 50 ]
+                        [ 10, 25, 50, 100 ]
             in
-            Html.select [ onInput UpdatePageSize ] options
+            Html.div [ class "control" ]
+                [ Html.text "Show: "
+                , Html.div [ class "select" ]
+                    [ Html.select [ onInput UpdatePageSize ] options
+                    ]
+                ]
     in
     Html.div [ class "container" ]
         [ Html.div [ class "columns" ]
@@ -656,14 +676,18 @@ pagination model =
                     )
                 ]
             , Html.div [ class "column" ]
-                [ Html.text "Search: "
-                , Html.input [ onInput UpdateTextSearch ] []
+                [ Html.div [ class "control" ]
+                    [ Html.input
+                        [ type_ "text"
+                        , class "input"
+                        , placeholder "Search"
+                        , onInput UpdateTextSearch
+                        ]
+                        []
+                    ]
                 ]
-            , Html.div [ class "column" ] [ Html.text "Show: ", pageSizeNav ]
-            , Html.div [ class "column" ]
-                [ Html.text "Go To Page: "
-                , pageNav
-                ]
+            , Html.div [ class "column" ] [ pageSizeNav ]
+            , Html.div [ class "column" ] [ pageNav ]
             ]
         ]
 
@@ -723,7 +747,6 @@ viewSimulations simulations selectedSimulationIds sortColumn =
                             ]
                             []
                         ]
-                    , Html.th [] [ Html.text "Index" ]
                     , Html.th [] [ Html.text "Thumbnail" ]
                     , Html.th []
                         [ Html.a
@@ -748,7 +771,7 @@ viewSimulations simulations selectedSimulationIds sortColumn =
 
         rows =
             Html.tbody []
-                (List.indexedMap
+                (List.map
                     (viewSimulation selectedSimulationIds)
                     simulations
                 )
@@ -758,8 +781,8 @@ viewSimulations simulations selectedSimulationIds sortColumn =
         [ header, rows ]
 
 
-viewSimulation : List Int -> Int -> Simulation -> Html Msg
-viewSimulation selectedSimulationIds index simulation =
+viewSimulation : List Int -> Simulation -> Html Msg
+viewSimulation selectedSimulationIds simulation =
     Html.tr []
         [ Html.td []
             [ Html.input
@@ -768,9 +791,6 @@ viewSimulation selectedSimulationIds index simulation =
                 , checked (List.member simulation.id selectedSimulationIds)
                 ]
                 []
-            ]
-        , Html.td []
-            [ Html.text <| String.fromInt (index + 1)
             ]
         , Html.td []
             [ Html.img
