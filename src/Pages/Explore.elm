@@ -49,6 +49,7 @@ type alias Model =
     , downloadFileTypes : List String
     , showDownloadFileTypes : Bool
     , downloadToken : Maybe String
+    , sortColumn : String
     }
 
 
@@ -56,10 +57,11 @@ type alias Simulation =
     { id : Int
     , guid : String
     , slug : String
-    , fastaSequence : String
+    , fastaSequence : Maybe String
     , shortDescription : Maybe String
     , biomolecules : List Biomolecule
     , ligands : List Ligand
+    , software : Maybe Software
     }
 
 
@@ -84,6 +86,12 @@ type alias ExploreRequest =
     , next : Maybe String
     , previous : Maybe String
     , results : List Simulation
+    }
+
+
+type alias Software =
+    { name : String
+    , version : String
     }
 
 
@@ -113,6 +121,7 @@ initialModel =
     , downloadFileTypes = []
     , showDownloadFileTypes = False
     , downloadToken = Nothing
+    , sortColumn = "description"
     }
 
 
@@ -147,14 +156,19 @@ requestData model =
                 _ ->
                     ""
 
+        ordering =
+            "&ordering=" ++ model.sortColumn
+
         url =
             Config.apiHost
                 ++ "/getSimulations?limit="
                 ++ String.fromInt model.pageSize
                 ++ offset
                 ++ search
+                ++ ordering
 
-        -- _ = Debug.log "url" url
+        _ =
+            Debug.log "url" url
     in
     Effect.sendCmd <|
         Http.get
@@ -181,10 +195,18 @@ simulationDecoder =
         |> required "id" int
         |> required "guid" string
         |> required "slug" string
-        |> required "fasta_sequence" string
+        |> required "fasta_sequence" (nullable string)
         |> required "short_description" (nullable string)
         |> required "biomolecules" (Decode.list biomoleculeDecoder)
         |> required "ligands" (Decode.list ligandDecoder)
+        |> required "software" (nullable softwareDecoder)
+
+
+softwareDecoder : Decoder Software
+softwareDecoder =
+    Decode.succeed Software
+        |> required "name" string
+        |> required "version" string
 
 
 biomoleculeDecoder : Decoder Biomolecule
@@ -225,6 +247,7 @@ type Msg
     | ShowDownloadDialog
     | SelectAllDownloadFileTypes
     | SetDownloadFileType String Bool
+    | SetSortColumn String
     | UpdatePageSize String
     | UpdatePageNumber String
     | UpdateTextSearch String
@@ -262,6 +285,13 @@ update msg model =
         ShowDownloadDialog ->
             ( { model | showDownloadDialog = True }, Effect.none )
 
+        SetSortColumn newSortColumn ->
+            let
+                newModel =
+                    { model | sortColumn = newSortColumn }
+            in
+            ( newModel, requestData newModel )
+
         SelectAllDownloadFileTypes ->
             ( { model | showDownloadFileTypes = False, downloadFileTypes = [] }, Effect.none )
 
@@ -276,6 +306,10 @@ update msg model =
             )
 
         SimulationApiResponded (Err err) ->
+            let
+                _ =
+                    Debug.log "err" err
+            in
             ( { model
                 | recordCount = Nothing
                 , simulations = RemoteData.Failure err
@@ -407,10 +441,12 @@ view model =
         , body =
             [ case model.simulations of
                 RemoteData.Success simulations ->
-                    Html.div []
-                        [ viewDownloadDialog model
-                        , pagination model
-                        , viewSimulations simulations model.selectedSimulationIds
+                    Html.div [ class "container" ]
+                        [ Html.div [ class "box" ]
+                            [ viewDownloadDialog model
+                            , pagination model
+                            , viewSimulations simulations model.selectedSimulationIds model.sortColumn
+                            ]
                         ]
 
                 RemoteData.Failure err ->
@@ -632,9 +668,51 @@ pagination model =
         ]
 
 
-viewSimulations : List Simulation -> List Int -> Html Msg
-viewSimulations simulations selectedSimulationIds =
+viewSimulations : List Simulation -> List Int -> String -> Html Msg
+viewSimulations simulations selectedSimulationIds sortColumn =
     let
+        up =
+            "↓"
+
+        down =
+            "↑"
+
+        both =
+            "↓↑"
+
+        ( descSortCol, descSortArrow ) =
+            case sortColumn of
+                "description" ->
+                    ( "-description", up )
+
+                "-description" ->
+                    ( "description", down )
+
+                _ ->
+                    ( "description", both )
+
+        ( idSortCol, idSortArrow ) =
+            case sortColumn of
+                "id" ->
+                    ( "-id", up )
+
+                "-id" ->
+                    ( "id", down )
+
+                _ ->
+                    ( "id", both )
+
+        ( softwareSortCol, softwareSortArrow ) =
+            case sortColumn of
+                "softwareName" ->
+                    ( "-softwareName", up )
+
+                "-softwareName" ->
+                    ( "softwareName", down )
+
+                _ ->
+                    ( "softwareName", both )
+
         header =
             Html.thead []
                 [ Html.tr []
@@ -647,11 +725,24 @@ viewSimulations simulations selectedSimulationIds =
                         ]
                     , Html.th [] [ Html.text "Index" ]
                     , Html.th [] [ Html.text "Thumbnail" ]
-                    , Html.th [] [ Html.text "Description" ]
-                    , Html.th [] [ Html.text "MDRepo ID" ]
+                    , Html.th []
+                        [ Html.a
+                            [ onClick (SetSortColumn descSortCol) ]
+                            [ Html.text <| "Description" ++ descSortArrow ]
+                        ]
+                    , Html.th []
+                        [ Html.a
+                            [ onClick (SetSortColumn idSortCol) ]
+                            [ Html.text <| "MDRepo ID" ++ idSortArrow ]
+                        ]
                     , Html.th [] [ Html.text "Biomolecules" ]
                     , Html.th [] [ Html.text "Ligands" ]
                     , Html.th [] [ Html.text "Sequence" ]
+                    , Html.th []
+                        [ Html.a
+                            [ onClick (SetSortColumn softwareSortCol) ]
+                            [ Html.text <| "Software" ++ softwareSortArrow ]
+                        ]
                     ]
                 ]
 
@@ -662,13 +753,9 @@ viewSimulations simulations selectedSimulationIds =
                     simulations
                 )
     in
-    Html.div [ class "container py-6 p-5" ]
-        [ Html.div [ class "columns is-multiline" ]
-            [ Html.table
-                [ class "table is-striped" ]
-                [ header, rows ]
-            ]
-        ]
+    Html.table
+        [ class "table is-striped" ]
+        [ header, rows ]
 
 
 viewSimulation : List Int -> Int -> Simulation -> Html Msg
@@ -693,7 +780,7 @@ viewSimulation selectedSimulationIds index simulation =
                 []
             ]
         , Html.td []
-            [ Html.text <| Maybe.withDefault "NA" simulation.shortDescription
+            [ Html.text <| Maybe.withDefault "" simulation.shortDescription
             ]
         , Html.td []
             [ Html.a
@@ -710,7 +797,11 @@ viewSimulation selectedSimulationIds index simulation =
             [ viewLigands simulation.ligands
             ]
         , Html.td []
-            [ Html.text <| truncate 30 simulation.fastaSequence
+            [ Html.text <|
+                truncate 30 (Maybe.withDefault "" simulation.fastaSequence)
+            ]
+        , Html.td []
+            [ viewSoftware simulation.software
             ]
         ]
 
@@ -722,6 +813,16 @@ truncate len val =
 
     else
         val
+
+
+viewSoftware : Maybe Software -> Html Msg
+viewSoftware software =
+    case software of
+        Just val ->
+            Html.text val.name
+
+        _ ->
+            Html.text ""
 
 
 viewBiomolecules : List Biomolecule -> Html Msg
