@@ -263,12 +263,20 @@ update msg model =
         CloseDownloadDialog ->
             ( { model | showDownloadDialog = False }, Effect.none )
 
-        {- GetDownloadToken ->
-           let
-               downloadToken =
-                   getDownloadToken model
-           in
-           ( { model | downloadToken = Just downloadToken }, Effect.none )
+        {- GotDownloadToken ->
+              let
+                  downloadToken =
+                      getDownloadToken model
+              in
+              ( { model | downloadToken = Just downloadToken }, Effect.none )
+
+           getDownloadToken : Model -> String
+           getDownloadToken model =
+               Http.post
+               { url = Config.apiHost ++ "/downloads"
+               , body = Http.emptyBody
+               , expect = Http.expectJson GotDownloadToken string
+               }
         -}
         SetDownloadFileType fileType isChecked ->
             let
@@ -416,14 +424,6 @@ update msg model =
 
 
 
-{- getDownloadToken : Model -> String
-   getDownloadToken model =
-       Http.post
-       { url = Config.apiHost ++ "/downloads"
-       , body = Http.emptyBody
-       , expect = Http.expectJson GotDownloadToken string
-       }
--}
 -- SUBSCRIPTIONS
 
 
