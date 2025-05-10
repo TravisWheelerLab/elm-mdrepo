@@ -1,20 +1,26 @@
 module Pages.Explore.Id_ exposing (Model, Msg, page)
 
+--import Layouts
+
 import Api
 import Components.Header
 import Config
 import Effect exposing (Effect)
+import Filesize
 import Html
-import Html.Attributes exposing (class, src, width)
+import Html.Attributes exposing (align, checked, class, disabled, readonly, rows, src, type_)
+import Html.Events exposing (onCheck, onClick)
 import Http
-import Json.Decode as Decode exposing (Decoder, decodeString, float, int, nullable, string)
+import Iso8601
+import Json.Decode as Decode exposing (Decoder, bool, decodeString, float, int, list, nullable, string)
 import Json.Decode.Pipeline exposing (hardcoded, optional, required)
-import Layouts
+import Json.Encode as Encode
 import Maybe exposing (..)
 import Page exposing (Page)
 import RemoteData exposing (RemoteData, WebData)
 import Route exposing (Route)
 import Shared
+import Time
 import View exposing (View)
 
 
@@ -38,118 +44,116 @@ type alias Simulation =
     , guid : String
     , slug : String
     , description : Maybe String
+    , createdBy : CreatedBy
+    , creationDate : Time.Posix
+    , replicate : Int
+    , totalReplicates : Int
+    , samplingFrequency : Float
+    , duration : Float
+    , integrationTimestepFs : Float
+    , temperature : Int
+    , fastaSequence : String
+    , software : SimulationSoftware
+    , biomolecules : List Biomolecule
+    , unvalidatedBiomolecules : List Biomolecule
+    , ligands : List Ligand
+    , contributions : List Contribution
+    , solvents : List Solvent
+    , processedFiles : List ProcessedFile
+    , uploadedFiles : List UploadedFile
     }
 
 
-
-{-
-   type alias Simulation =
-       { id : String
-       , mdRepoId : String
-       , guid : String
-       , isPlaceholder : Bool
-       , isRestricted : Bool
-       , description : String
-       , shortDescription : String
-       , externalLink : Maybe String
-       , includesWater : Bool
-       , runCommands : Maybe String
-       , waterType : String
-       , waterDensity : Maybe Float
-       , duration : Float
-       , samplingFrequence : Float
-       , integrationTimestepFs : Float
-       , software : SimulationSoftware
-       , ligands : List String
-       , contributions : List String
-       , biomolecules : List Biomolecule
-       , unvalidatedBiomolecules : List Biomolecule
-       , solvents : List String
-       , papers : List String
-       , slug : String
-       , rmsdValues : List Float
-       , rmsfValues : List Float
-       , createdBy : CreatedBy
-       , replicate : Int
-       , totalReplicates : Int
-       , creationDate : String
-       , replicateGroup : ReplicateGroup
-       , forceField : Maybe String
-       , forceFieldComments : Maybe String
-       , uploadedFiles : List UploadedFile
-       , processedFiles : List ProcessedFile
-       , displayTrajectoryFile : ProcessedFile
-       , displayStructureFile : ProcessedFile
-       , fastaSequence : String
-       , temperature : Int
-       , protonationMethod : Maybe String
-       , displayTrajectoryFileNFrames : Int
-       , canEdit : Bool
-       }
+type alias SimulationSoftware =
+    { name : String
+    , version : Maybe String
+    }
 
 
-   type alias SimulationSoftware =
-       { name : String
-       , version : Maybe String
-       }
+type alias Solvent =
+    { name : String
+    , concentration : Int
+    , concentrationUnits : String
+    }
 
 
-   type alias Biomolecule =
-       { moleculeId : String
-       , moleculeIdType : String
-       }
+type alias Contribution =
+    { name : String
+    , orcid : Maybe String
+    , email : Maybe String
+    , institution : Maybe String
+    }
 
 
-   type alias CreatedBy =
-       { firstName : String
-       , lastName : String
-       , fullName : String
-       , email : String
-       , institution : Maybe String
-       , isSuperuser : Bool
-       , isStaff : Bool
-       , orcid : Maybe String
-       , canContribute : Bool
-       }
+type alias Biomolecule =
+    { moleculeId : String
+    , moleculeIdType : String
+    }
 
 
-   type alias ReplicateGroup =
-       { psfHash : String
-       , simulationSet : List String
-       }
+type alias Ligand =
+    { name : String
+    , smilesString : Maybe String
+    }
 
 
+type alias CreatedBy =
+    { firstName : String
+    , lastName : String
+    , fullName : String
+    , email : String
+    , institution : Maybe String
+    , isSuperuser : Bool
+    , isStaff : Bool
+    , orcid : Maybe String
+    , canContribute : Bool
+    }
 
-   type alias UploadedFile =
-       { id : String
-       , primary : Bool
-       , filename : String
-       , fileType : String
-       , description : String
-       , fileSizeBytes : Int
-       }
+
+type alias ProcessedFile =
+    { id : Int
+    , isPrimary : Bool
+    , fileType : String
+    , localFileName : String
+    , localFilePath : String
+    , description : Maybe String
+    , fileSizeBytes : Int
+    , isPublic : Bool
+    }
 
 
-   type alias ProcessedFile =
-       { id : String
-       , isPrimary : Bool
-       , fileType : String
-       , localFilename : String
-       , localFilePath : String
-       , description : String
-       , fileSizeBytes : Int
-       , public : Bool
-       }
--}
+type alias UploadedFile =
+    { id : Int
+    , primary : Bool
+    , filename : String
+    , fileType : String
+    , description : Maybe String
+    , fileSizeBytes : Int
+    }
 
 
 type alias Model =
-    { simulationData : WebData Simulation }
+    { simulation : WebData Simulation
+    , selectedProcessedFileIds : List Int
+    , downloadInstanceId : Maybe Int
+    }
+
+
+type alias DownloadInstance =
+    { downloadInstanceId : Int }
+
+
+initialModel : Model
+initialModel =
+    { simulation = RemoteData.NotAsked
+    , selectedProcessedFileIds = []
+    , downloadInstanceId = Nothing
+    }
 
 
 init : Route { id : String } -> () -> ( Model, Effect Msg )
 init route _ =
-    ( { simulationData = RemoteData.NotAsked }
+    ( initialModel
     , Effect.sendCmd <|
         Http.get
             { url = Config.apiHost ++ "/getSimulations/" ++ route.params.id
@@ -174,6 +178,105 @@ simulationDecoder =
         |> required "guid" string
         |> required "slug" string
         |> required "description" (nullable string)
+        |> required "created_by" createdByDecoder
+        |> required "creation_date" Iso8601.decoder
+        |> required "replicate" int
+        |> required "total_replicates" int
+        |> required "sampling_frequency" float
+        |> required "duration" float
+        |> required "integration_timestep_fs" float
+        |> required "temperature" int
+        |> required "fasta_sequence" string
+        |> required "software" softwareDecoder
+        |> required "biomolecules" (list biomoleculeDecoder)
+        |> required "unvalidated_biomolecules" (list biomoleculeDecoder)
+        |> required "ligands" (list ligandDecoder)
+        |> required "contributions" (list contributionDecoder)
+        |> required "solvents" (list solventDecoder)
+        |> required "processed_files" (list processedFileDecoder)
+        |> required "uploaded_files" (list uploadedFileDecoder)
+
+
+createdByDecoder : Decoder CreatedBy
+createdByDecoder =
+    Decode.succeed CreatedBy
+        |> required "first_name" string
+        |> required "last_name" string
+        |> required "full_name" string
+        |> required "email" string
+        |> required "institution" (nullable string)
+        |> required "is_superuser" bool
+        |> required "is_staff" bool
+        |> required "orcid" (nullable string)
+        |> required "can_contribute" bool
+
+
+contributionDecoder : Decoder Contribution
+contributionDecoder =
+    Decode.succeed Contribution
+        |> required "name" string
+        |> required "orcid" (nullable string)
+        |> required "email" (nullable string)
+        |> required "institution" (nullable string)
+
+
+processedFileDecoder : Decoder ProcessedFile
+processedFileDecoder =
+    Decode.succeed ProcessedFile
+        |> required "id" int
+        |> required "is_primary" bool
+        |> required "file_type" string
+        |> required "local_filename" string
+        |> required "local_file_path" string
+        |> required "description" (nullable string)
+        |> required "file_size_bytes" int
+        |> required "public" bool
+
+
+uploadedFileDecoder : Decoder UploadedFile
+uploadedFileDecoder =
+    Decode.succeed UploadedFile
+        |> required "id" int
+        |> required "primary" bool
+        |> required "filename" string
+        |> required "file_type" string
+        |> required "description" (nullable string)
+        |> required "file_size_bytes" int
+
+
+solventDecoder : Decoder Solvent
+solventDecoder =
+    Decode.succeed Solvent
+        |> required "name" string
+        |> required "concentration" int
+        |> required "concentration_units" string
+
+
+softwareDecoder : Decoder SimulationSoftware
+softwareDecoder =
+    Decode.succeed SimulationSoftware
+        |> required "name" string
+        |> required "version" (nullable string)
+
+
+ligandDecoder : Decoder Ligand
+ligandDecoder =
+    Decode.succeed Ligand
+        |> required "name" string
+        |> required "smiles_string" (nullable string)
+
+
+biomoleculeDecoder : Decoder Biomolecule
+biomoleculeDecoder =
+    Decode.succeed Biomolecule
+        |> required "molecule_id" string
+        |> required "molecule_id_type" string
+
+
+downloadInstanceDecoder : Decoder DownloadInstance
+downloadInstanceDecoder =
+    Decode.succeed DownloadInstance
+        |> required "download_instance_id" int
 
 
 
@@ -184,20 +287,90 @@ simulationDecoder =
 
 type Msg
     = SimulationApiResponded (Result Http.Error Simulation)
+    | ToggleAllProcessedFiles Bool
+    | ToggleProcessedFile Int Bool
+    | CreateDownloadInstance
+    | GotDownloadInstance (Result Http.Error DownloadInstance)
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
+        CreateDownloadInstance ->
+            let
+                fileEncoder fileId =
+                    Encode.object
+                        [ ( "file_type", Encode.string "processed" )
+                        , ( "file_id", Encode.int fileId )
+                        ]
+
+                body =
+                    case model.simulation of
+                        RemoteData.Success simulation ->
+                            Encode.object
+                                [ ( "files", Encode.list fileEncoder model.selectedProcessedFileIds )
+                                , ( "simulation_id", Encode.int simulation.id )
+                                ]
+
+                        _ ->
+                            Encode.object []
+            in
+            ( model
+            , Effect.sendCmd <|
+                Http.post
+                    { url = Config.apiHost ++ "/create_download_instance"
+                    , body = Http.jsonBody body
+                    , expect = Http.expectJson GotDownloadInstance downloadInstanceDecoder
+                    }
+            )
+
+        GotDownloadInstance (Ok downloadInstance) ->
+            ( { model | downloadInstanceId = Just downloadInstance.downloadInstanceId }
+              -- TODO: Use downloadInstanceId to initiate download
+            , Effect.none
+            )
+
+        GotDownloadInstance (Err err) ->
+            ( { model | downloadInstanceId = Nothing }
+            , Effect.none
+            )
+
         SimulationApiResponded (Ok simulation) ->
-            ( { model | simulationData = RemoteData.Success simulation }
+            ( { model | simulation = RemoteData.Success simulation }
             , Effect.none
             )
 
         SimulationApiResponded (Err err) ->
-            ( { model | simulationData = RemoteData.Failure err }
+            ( { model | simulation = RemoteData.Failure err }
             , Effect.none
             )
+
+        ToggleAllProcessedFiles checked ->
+            let
+                fileIds =
+                    if checked then
+                        case model.simulation of
+                            RemoteData.Success simulation ->
+                                List.map .id simulation.processedFiles
+
+                            _ ->
+                                []
+
+                    else
+                        []
+            in
+            ( { model | selectedProcessedFileIds = fileIds }, Effect.none )
+
+        ToggleProcessedFile fileId isChecked ->
+            let
+                newIds =
+                    if isChecked then
+                        model.selectedProcessedFileIds ++ [ fileId ]
+
+                    else
+                        List.filter ((/=) fileId) model.selectedProcessedFileIds
+            in
+            ( { model | selectedProcessedFileIds = newIds }, Effect.none )
 
 
 
@@ -218,7 +391,7 @@ view model =
     let
         --_ = Debug.log "model" model
         body =
-            case model.simulationData of
+            case model.simulation of
                 RemoteData.NotAsked ->
                     Html.text "Not asked"
 
@@ -226,7 +399,7 @@ view model =
                     Html.text "Loading"
 
                 RemoteData.Success simulation ->
-                    viewSimulation simulation
+                    viewSimulation simulation model.selectedProcessedFileIds
 
                 RemoteData.Failure err ->
                     Html.text <| "Got error: " ++ Api.toUserFriendlyMessage err
@@ -237,60 +410,348 @@ view model =
         }
 
 
-viewSimulation : Simulation -> Html.Html msg
-viewSimulation simulation =
-    Html.div []
-        [ Html.h1 [ class "title is-1" ] [ Html.text ("View Simulation " ++ simulation.slug) ]
-        , Html.table []
-            [ Html.thead []
-                []
-            , Html.tbody
-                []
-                [ Html.tr []
-                    [ Html.th []
-                        [ Html.text "ID" ]
-                    , Html.td
-                        []
-                        [ Html.text (String.fromInt simulation.id) ]
-                    ]
-                , Html.tr []
-                    [ Html.th []
-                        [ Html.text "MD Repo ID" ]
-                    , Html.td
-                        []
-                        [ Html.text simulation.mdRepoId ]
-                    ]
-                , Html.tr []
-                    [ Html.th []
-                        [ Html.text "Desc" ]
-                    , Html.td
-                        []
-                        [ Html.text <| withDefault "NA" simulation.description ]
-                    ]
-                , Html.tr []
-                    [ Html.th []
-                        [ Html.text "Thumbnail" ]
-                    , Html.td
-                        []
-                        [ Html.img
-                            [ src <| Config.mediaHost ++ "/" ++ simulation.guid ++ "/thumbnail.png"
-                            , width 200
-                            ]
-                            []
+viewSimulation : Simulation -> List Int -> Html.Html Msg
+viewSimulation simulation selectedProcessedFileIds =
+    let
+        --_ = Debug.log "simulation" simulation
+        creationDate =
+            simulation.creationDate
+
+        month =
+            case Time.toMonth Time.utc creationDate of
+                Time.Jan ->
+                    "01"
+
+                Time.Feb ->
+                    "02"
+
+                Time.Mar ->
+                    "03"
+
+                Time.Apr ->
+                    "04"
+
+                Time.May ->
+                    "05"
+
+                Time.Jun ->
+                    "06"
+
+                Time.Jul ->
+                    "07"
+
+                Time.Aug ->
+                    "08"
+
+                Time.Sep ->
+                    "09"
+
+                Time.Oct ->
+                    "10"
+
+                Time.Nov ->
+                    "11"
+
+                Time.Dec ->
+                    "12"
+
+        tbl1 =
+            Html.table [ class "table" ]
+                [ Html.thead []
+                    []
+                , Html.tbody
+                    []
+                    [ Html.tr []
+                        [ Html.th [] [ Html.text "Desc" ]
+                        , Html.td [] [ Html.text <| withDefault "NA" simulation.description ]
                         ]
-                    ]
-                , Html.tr []
-                    [ Html.th []
-                        [ Html.text "Preview" ]
-                    , Html.td
-                        []
-                        [ Html.img
-                            [ src <| Config.mediaHost ++ "/" ++ simulation.guid ++ "/preview.gif"
-                            , width 200
-                            ]
+                    , Html.tr []
+                        [ Html.th []
+                            [ Html.text "Created On" ]
+                        , Html.td
                             []
+                            [ Html.text <|
+                                String.join "-"
+                                    [ String.fromInt (Time.toYear Time.utc creationDate)
+                                    , month
+                                    , String.fromInt (Time.toDay Time.utc creationDate)
+                                    ]
+                            ]
+                        ]
+                    , Html.tr []
+                        [ Html.th []
+                            [ Html.text "Replicate" ]
+                        , Html.td
+                            []
+                            [ Html.text <|
+                                String.fromInt simulation.replicate
+                                    ++ " of "
+                                    ++ String.fromInt simulation.totalReplicates
+                            ]
+                        ]
+                    , Html.tr []
+                        [ Html.th []
+                            [ Html.text "Software" ]
+                        , Html.td
+                            []
+                            [ Html.text <|
+                                simulation.software.name
+                                    ++ (case Maybe.withDefault "" simulation.software.version of
+                                            "" ->
+                                                ""
+
+                                            version ->
+                                                " (" ++ version ++ ")"
+                                       )
+                            ]
+                        ]
+                    , Html.tr []
+                        [ Html.th [] [ Html.text "Sampling timestep (ns)" ]
+                        , Html.td [] [ Html.text (String.fromFloat simulation.samplingFrequency) ]
+                        ]
+                    , Html.tr []
+                        [ Html.th [] [ Html.text "Duration (ns)" ]
+                        , Html.td [] [ Html.text (String.fromFloat simulation.duration) ]
+                        ]
+                    , Html.tr []
+                        [ Html.th [] [ Html.text "Integration time step (fs)" ]
+                        , Html.td [] [ Html.text (String.fromFloat simulation.integrationTimestepFs) ]
+                        ]
+                    , Html.tr []
+                        [ Html.th [] [ Html.text "Temperature" ]
+                        , Html.td [] [ Html.text <| String.fromInt simulation.temperature ++ "K" ]
+                        ]
+                    , Html.tr []
+                        [ Html.th [] [ Html.text "Protein Sequence" ]
+                        , Html.td []
+                            [ Html.textarea
+                                [ readonly True, class "textarea", rows 7 ]
+                                [ Html.text simulation.fastaSequence ]
+                            ]
                         ]
                     ]
                 ]
+
+        tbl2 =
+            Html.table [ class "table" ]
+                [ Html.thead []
+                    []
+                , Html.tbody
+                    []
+                    [ Html.tr []
+                        [ Html.th [] [ Html.text "Created By" ]
+                        , Html.td [] [ Html.text simulation.createdBy.fullName ]
+                        ]
+                    , Html.tr []
+                        [ Html.th []
+                            [ Html.text <|
+                                "Contributions ("
+                                    ++ (String.fromInt <| List.length simulation.contributions)
+                                    ++ ")"
+                            ]
+                        , Html.td []
+                            [ case List.length simulation.contributions of
+                                0 ->
+                                    Html.text "NA"
+
+                                _ ->
+                                    Html.ul [] <| List.map viewContribution simulation.contributions
+                            ]
+                        ]
+                    , Html.tr []
+                        [ Html.th []
+                            [ Html.text <|
+                                "Biomolecules ("
+                                    ++ (String.fromInt <| List.length simulation.biomolecules)
+                                    ++ ")"
+                            ]
+                        , Html.td []
+                            [ case List.length simulation.biomolecules of
+                                0 ->
+                                    Html.text "NA"
+
+                                _ ->
+                                    Html.ul [] <| List.map viewBiomolecule simulation.biomolecules
+                            ]
+                        ]
+                    , Html.tr
+                        []
+                        [ Html.th []
+                            [ Html.text <|
+                                "Unvalidated Biomolecules ("
+                                    ++ (String.fromInt <| List.length simulation.unvalidatedBiomolecules)
+                                    ++ ")"
+                            ]
+                        , Html.td []
+                            [ case List.length simulation.unvalidatedBiomolecules of
+                                0 ->
+                                    Html.text "NA"
+
+                                _ ->
+                                    Html.ul [] <| List.map viewBiomolecule simulation.unvalidatedBiomolecules
+                            ]
+                        ]
+                    , Html.tr
+                        []
+                        [ Html.th []
+                            [ Html.text <|
+                                "Ligands ("
+                                    ++ (String.fromInt <| List.length simulation.ligands)
+                                    ++ ")"
+                            ]
+                        , Html.td []
+                            [ case List.length simulation.ligands of
+                                0 ->
+                                    Html.text "NA"
+
+                                _ ->
+                                    Html.ul [] <| List.map viewLigand simulation.ligands
+                            ]
+                        ]
+                    , Html.tr
+                        []
+                        [ Html.th []
+                            [ Html.text <|
+                                "Solvents ("
+                                    ++ (String.fromInt <| List.length simulation.solvents)
+                                    ++ ")"
+                            ]
+                        , Html.td []
+                            [ case List.length simulation.solvents of
+                                0 ->
+                                    Html.text "NA"
+
+                                _ ->
+                                    Html.ul [] <| List.map viewSolvent simulation.solvents
+                            ]
+                        ]
+                    , Html.tr
+                        []
+                        [ Html.th [] [ Html.text "Simulation Properties" ]
+                        , Html.td [] [ Html.text "Graphs here of RMSD/RMSF" ]
+                        ]
+                    ]
+                ]
+
+        viewBiomolecule : Biomolecule -> Html.Html Msg
+        viewBiomolecule val =
+            Html.li [] [ Html.text <| val.moleculeId ++ " (" ++ val.moleculeIdType ++ ")" ]
+
+        viewLigand : Ligand -> Html.Html Msg
+        viewLigand ligand =
+            Html.li [] [ Html.text ligand.name ]
+
+        viewContribution : Contribution -> Html.Html Msg
+        viewContribution contribution =
+            Html.li [] [ Html.text contribution.name ]
+
+        viewSolvent : Solvent -> Html.Html Msg
+        viewSolvent solvent =
+            Html.li []
+                [ Html.text <|
+                    solvent.name
+                        ++ " ("
+                        ++ String.fromInt solvent.concentration
+                        ++ solvent.concentrationUnits
+                        ++ ")"
+                ]
+
+        processedFilesTable =
+            Html.div []
+                [ Html.h2 [] [ Html.text "Processed Files" ]
+                , Html.button
+                    [ class "button"
+                    , disabled (List.isEmpty selectedProcessedFileIds)
+                    , onClick CreateDownloadInstance
+                    ]
+                    [ Html.text "Download" ]
+                , Html.table [ class "table" ]
+                    [ Html.thead []
+                        [ Html.tr []
+                            [ Html.th []
+                                [ Html.input
+                                    [ type_ "checkbox"
+                                    , onCheck ToggleAllProcessedFiles
+                                    ]
+                                    []
+                                ]
+                            , Html.th [] [ Html.text "Name" ]
+                            , Html.th [] [ Html.text "File Type" ]
+                            , Html.th [] [ Html.text "File Size" ]
+                            , Html.th [] [ Html.text "Description" ]
+                            ]
+                        ]
+                    , Html.tbody
+                        []
+                        (List.map (viewProcessedFile selectedProcessedFileIds) simulation.processedFiles)
+                    ]
+                ]
+
+        formatSettings =
+            { units = Filesize.Base10
+            , decimalPlaces = 2
+            , decimalSeparator = "."
+            }
+
+        viewProcessedFile : List Int -> ProcessedFile -> Html.Html Msg
+        viewProcessedFile selectedFileIds file =
+            Html.tr []
+                [ Html.td []
+                    [ Html.input
+                        [ type_ "checkbox"
+                        , checked (List.member file.id selectedFileIds)
+                        , onCheck (ToggleProcessedFile file.id)
+                        ]
+                        []
+                    ]
+                , Html.td [] [ Html.text file.localFileName ]
+                , Html.td [] [ Html.text file.fileType ]
+                , Html.td [ align "right" ] [ Html.text (Filesize.formatWith formatSettings file.fileSizeBytes) ]
+                , Html.td [] [ Html.text (Maybe.withDefault "" file.description) ]
+                ]
+
+        viewUploadedFile : UploadedFile -> Html.Html Msg
+        viewUploadedFile file =
+            Html.tr []
+                [ Html.td [] [ Html.input [ type_ "checkbox" ] [] ]
+                , Html.td [] [ Html.text file.filename ]
+                , Html.td [] [ Html.text file.fileType ]
+                , Html.td [ align "right" ] [ Html.text (Filesize.formatWith formatSettings file.fileSizeBytes) ]
+                , Html.td [] [ Html.text (Maybe.withDefault "" file.description) ]
+                ]
+
+        uploadedFilesTable =
+            Html.div []
+                [ Html.h2 [] [ Html.text "Uploaded Files" ]
+                , Html.table [ class "table" ]
+                    [ Html.thead []
+                        [ Html.tr []
+                            [ Html.th [] []
+                            , Html.th [] [ Html.text "Name" ]
+                            , Html.th [] [ Html.text "File Type" ]
+                            , Html.th [] [ Html.text "File Size" ]
+                            , Html.th [] [ Html.text "Description" ]
+                            ]
+                        ]
+                    , Html.tbody
+                        []
+                        (List.map viewUploadedFile simulation.uploadedFiles)
+                    ]
+                ]
+    in
+    Html.div [ class "container content" ]
+        [ Html.div [ class "box" ]
+            [ Html.h1 [ class "title is-1" ] [ Html.text ("Simulation " ++ simulation.slug) ]
+            , Html.div [ class "columns" ]
+                [ Html.div [ class "column" ] [ tbl1 ]
+                , Html.div [ class "column" ]
+                    [ Html.img
+                        [ src <| Config.mediaHost ++ "/" ++ simulation.guid ++ "/preview.gif" ]
+                        []
+                    ]
+                ]
+            , tbl2
+            , processedFilesTable
+            , uploadedFilesTable
             ]
         ]
