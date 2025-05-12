@@ -173,6 +173,7 @@ type alias Model =
     { simulation : WebData Simulation
     , selectedProcessedFileIds : List Int
     , downloadInstanceId : Maybe Int
+    , error : Maybe String
     }
 
 
@@ -185,6 +186,7 @@ initialModel =
     { simulation = RemoteData.NotAsked
     , selectedProcessedFileIds = []
     , downloadInstanceId = Nothing
+    , error = Nothing
     }
 
 
@@ -363,7 +365,7 @@ type Msg
     | ToggleAllProcessedFiles Bool
     | ToggleProcessedFile Int Bool
     | CreateDownloadInstance
-    | GotDownloadInstance (Result Http.Error DownloadInstance)
+    | GotDownloadInstanceId (Result Http.Error DownloadInstance)
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
@@ -393,18 +395,24 @@ update msg model =
                 Http.post
                     { url = Config.apiHost ++ "/create_download_instance"
                     , body = Http.jsonBody body
-                    , expect = Http.expectJson GotDownloadInstance downloadInstanceDecoder
+                    , expect = Http.expectJson GotDownloadInstanceId downloadInstanceDecoder
                     }
             )
 
-        GotDownloadInstance (Ok downloadInstance) ->
+        GotDownloadInstanceId (Ok downloadInstance) ->
             ( { model | downloadInstanceId = Just downloadInstance.downloadInstanceId }
               -- TODO: Use downloadInstanceId to initiate download
-            , Effect.none
+            , Effect.loadExternalUrl <|
+                Config.apiHost
+                    ++ "/get_download_instance/"
+                    ++ String.fromInt downloadInstance.downloadInstanceId
             )
 
-        GotDownloadInstance (Err err) ->
-            ( { model | downloadInstanceId = Nothing }
+        GotDownloadInstanceId (Err err) ->
+            ( { model
+                | downloadInstanceId = Nothing
+                , error = Just (Api.toUserFriendlyMessage err)
+              }
             , Effect.none
             )
 
@@ -476,10 +484,25 @@ view model =
 
                 RemoteData.Failure err ->
                     Html.text <| "Got error: " ++ Api.toUserFriendlyMessage err
+
+        errView =
+            case model.error of
+                Just err ->
+                    [ Html.section [ class "hero is-danger" ]
+                        [ Html.div
+                            [ class "hero-body" ]
+                            [ Html.p [ class "title" ] [ Html.text "Error" ]
+                            , Html.p [] [ Html.text err ]
+                            ]
+                        ]
+                    ]
+
+                _ ->
+                    []
     in
     Components.Header.view
         { title = "MDRepo - View Simulation"
-        , body = [ body ]
+        , body = List.concat [ errView, [ body ] ]
         }
 
 
@@ -727,7 +750,7 @@ viewSimulation simulation selectedProcessedFileIds =
                         []
                         [ Html.th [] [ Html.text "RMSD Values" ]
                         , Html.td []
-                            [ viewChart simulation.rmsdValues
+                            [ viewChart simulation.rmsdValues "RMSD"
                             , Html.textarea
                                 [ readonly True, class "textarea", rows 7 ]
                                 [ Html.text <|
@@ -740,7 +763,7 @@ viewSimulation simulation selectedProcessedFileIds =
                         []
                         [ Html.th [] [ Html.text "RMSF Values" ]
                         , Html.td []
-                            [ viewChart simulation.rmsfValues
+                            [ viewChart simulation.rmsfValues "RMSF"
                             , Html.textarea
                                 [ readonly True, class "textarea", rows 7 ]
                                 [ Html.text <|
@@ -752,7 +775,7 @@ viewSimulation simulation selectedProcessedFileIds =
                     ]
                 ]
 
-        viewChart vals =
+        viewChart vals xLabel =
             let
                 data =
                     List.indexedMap
@@ -762,6 +785,7 @@ viewSimulation simulation selectedProcessedFileIds =
             Chart.chart
                 [ CA.height 100
                 , CA.width 200
+                , CA.margin { top = 10, bottom = 10, left = 10, right = 10 }
                 ]
                 [ Chart.xLabels []
                 , Chart.yLabels [ CA.withGrid ]
