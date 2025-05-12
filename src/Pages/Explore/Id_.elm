@@ -8,7 +8,7 @@ import Config
 import Effect exposing (Effect)
 import Filesize
 import Html
-import Html.Attributes exposing (align, checked, class, disabled, readonly, rows, src, type_)
+import Html.Attributes exposing (align, checked, class, disabled, href, readonly, rows, src, type_)
 import Html.Events exposing (onCheck, onClick)
 import Http
 import Iso8601
@@ -17,8 +17,10 @@ import Json.Decode.Pipeline exposing (hardcoded, optional, required)
 import Json.Encode as Encode
 import Maybe exposing (..)
 import Page exposing (Page)
+import Regex
 import RemoteData exposing (RemoteData, WebData)
 import Route exposing (Route)
+import Route.Path
 import Shared
 import Time
 import View exposing (View)
@@ -44,10 +46,11 @@ type alias Simulation =
     , guid : String
     , slug : String
     , description : Maybe String
+    , externalLink : Maybe String
     , createdBy : CreatedBy
     , creationDate : Time.Posix
-    , replicate : Int
-    , totalReplicates : Int
+    , replicate : Maybe Int
+    , totalReplicates : Maybe Int
     , samplingFrequency : Float
     , duration : Float
     , integrationTimestepFs : Float
@@ -55,12 +58,14 @@ type alias Simulation =
     , fastaSequence : String
     , software : SimulationSoftware
     , biomolecules : List Biomolecule
-    , unvalidatedBiomolecules : List Biomolecule
+    , unvalidatedBiomolecules : List UnvalidatedBiomolecule
     , ligands : List Ligand
     , contributions : List Contribution
     , solvents : List Solvent
     , processedFiles : List ProcessedFile
     , uploadedFiles : List UploadedFile
+    , papers : List Paper
+    , replicateGroup : ReplicateGroup
     }
 
 
@@ -86,8 +91,18 @@ type alias Contribution =
 
 
 type alias Biomolecule =
+    { name : String
+    , primaryMoleculeIdType : String
+    , aminoLength : Int
+    , sequence : Maybe String
+    , uniprotId : Maybe String
+    , pdbId : Maybe String
+    }
+
+
+type alias UnvalidatedBiomolecule =
     { moleculeId : String
-    , moleculeIdType : String
+    , moleculeIdType : Maybe String
     }
 
 
@@ -129,6 +144,24 @@ type alias UploadedFile =
     , fileType : String
     , description : Maybe String
     , fileSizeBytes : Int
+    }
+
+
+type alias Paper =
+    { title : String
+    , authors : String
+    , journal : String
+    , volume : Int
+    , number : Maybe String
+    , year : Int
+    , pages : Maybe String
+    , doi : String
+    }
+
+
+type alias ReplicateGroup =
+    { psfHash : String
+    , simulationSet : List String
     }
 
 
@@ -178,10 +211,11 @@ simulationDecoder =
         |> required "guid" string
         |> required "slug" string
         |> required "description" (nullable string)
+        |> required "external_link" (nullable string)
         |> required "created_by" createdByDecoder
         |> required "creation_date" Iso8601.decoder
-        |> required "replicate" int
-        |> required "total_replicates" int
+        |> required "replicate" (nullable int)
+        |> required "total_replicates" (nullable int)
         |> required "sampling_frequency" float
         |> required "duration" float
         |> required "integration_timestep_fs" float
@@ -189,12 +223,27 @@ simulationDecoder =
         |> required "fasta_sequence" string
         |> required "software" softwareDecoder
         |> required "biomolecules" (list biomoleculeDecoder)
-        |> required "unvalidated_biomolecules" (list biomoleculeDecoder)
+        |> required "unvalidated_biomolecules" (list unvalidatedBiomoleculeDecoder)
         |> required "ligands" (list ligandDecoder)
         |> required "contributions" (list contributionDecoder)
         |> required "solvents" (list solventDecoder)
         |> required "processed_files" (list processedFileDecoder)
         |> required "uploaded_files" (list uploadedFileDecoder)
+        |> required "papers" (list paperDecoder)
+        |> required "replicate_group" replicateGroupDecoder
+
+
+paperDecoder : Decoder Paper
+paperDecoder =
+    Decode.succeed Paper
+        |> required "title" string
+        |> required "authors" string
+        |> required "journal" string
+        |> required "volume" int
+        |> required "number" (nullable string)
+        |> required "year" int
+        |> required "pages" (nullable string)
+        |> required "doi" string
 
 
 createdByDecoder : Decoder CreatedBy
@@ -266,11 +315,29 @@ ligandDecoder =
         |> required "smiles_string" (nullable string)
 
 
+replicateGroupDecoder : Decoder ReplicateGroup
+replicateGroupDecoder =
+    Decode.succeed ReplicateGroup
+        |> required "psf_hash" string
+        |> required "simulation_set" (list string)
+
+
 biomoleculeDecoder : Decoder Biomolecule
 biomoleculeDecoder =
     Decode.succeed Biomolecule
+        |> required "name" string
+        |> required "primary_molecule_id_type" string
+        |> required "amino_length" int
+        |> required "sequence" (nullable string)
+        |> required "uniprot_id" (nullable string)
+        |> required "pdb_id" (nullable string)
+
+
+unvalidatedBiomoleculeDecoder : Decoder UnvalidatedBiomolecule
+unvalidatedBiomoleculeDecoder =
+    Decode.succeed UnvalidatedBiomolecule
         |> required "molecule_id" string
-        |> required "molecule_id_type" string
+        |> required "molecule_id_type" (nullable string)
 
 
 downloadInstanceDecoder : Decoder DownloadInstance
@@ -414,46 +481,29 @@ viewSimulation : Simulation -> List Int -> Html.Html Msg
 viewSimulation simulation selectedProcessedFileIds =
     let
         --_ = Debug.log "simulation" simulation
-        creationDate =
-            simulation.creationDate
+        makeSimulationLink simId =
+            let
+                splitter =
+                    Maybe.withDefault Regex.never <| Regex.fromString "MDR"
 
-        month =
-            case Time.toMonth Time.utc creationDate of
-                Time.Jan ->
-                    "01"
+                split =
+                    List.filterMap String.toInt <| Regex.split splitter simId
+            in
+            case split of
+                [ id ] ->
+                    Just <|
+                        Html.a
+                            [ Route.Path.href <|
+                                Route.Path.Explore_Id_ { id = String.fromInt id }
+                            ]
+                            [ Html.text simId ]
 
-                Time.Feb ->
-                    "02"
+                _ ->
+                    Nothing
 
-                Time.Mar ->
-                    "03"
-
-                Time.Apr ->
-                    "04"
-
-                Time.May ->
-                    "05"
-
-                Time.Jun ->
-                    "06"
-
-                Time.Jul ->
-                    "07"
-
-                Time.Aug ->
-                    "08"
-
-                Time.Sep ->
-                    "09"
-
-                Time.Oct ->
-                    "10"
-
-                Time.Nov ->
-                    "11"
-
-                Time.Dec ->
-                    "12"
+        replicateSimulations =
+            List.filter ((/=) simulation.slug) simulation.replicateGroup.simulationSet
+                |> List.filterMap makeSimulationLink
 
         tbl1 =
             Html.table [ class "table" ]
@@ -462,20 +512,57 @@ viewSimulation simulation selectedProcessedFileIds =
                 , Html.tbody
                     []
                     [ Html.tr []
-                        [ Html.th [] [ Html.text "Desc" ]
+                        [ Html.th [] [ Html.text "Description" ]
                         , Html.td [] [ Html.text <| withDefault "NA" simulation.description ]
+                        ]
+                    , Html.tr []
+                        [ Html.th [] [ Html.text "External Link" ]
+                        , Html.td []
+                            [ case simulation.externalLink of
+                                Just link ->
+                                    Html.a [ href link ] [ Html.text link ]
+
+                                _ ->
+                                    Html.text "NA"
+                            ]
                         ]
                     , Html.tr []
                         [ Html.th []
                             [ Html.text "Created On" ]
                         , Html.td
                             []
-                            [ Html.text <|
-                                String.join "-"
-                                    [ String.fromInt (Time.toYear Time.utc creationDate)
-                                    , month
-                                    , String.fromInt (Time.toDay Time.utc creationDate)
-                                    ]
+                            [ Html.text <| viewCreationDate simulation.creationDate ]
+                        ]
+                    , Html.tr []
+                        [ Html.th []
+                            [ Html.text "Publications" ]
+                        , Html.td
+                            []
+                            [ case List.length <| simulation.papers of
+                                0 ->
+                                    Html.text "NA"
+
+                                _ ->
+                                    Html.ul [] <|
+                                        List.map
+                                            (\paper -> Html.li [] (viewPaper paper))
+                                            simulation.papers
+                            ]
+                        ]
+                    , Html.tr []
+                        [ Html.th []
+                            [ Html.text "Replicates" ]
+                        , Html.td
+                            []
+                            [ case List.length <| replicateSimulations of
+                                0 ->
+                                    Html.text "NA"
+
+                                _ ->
+                                    Html.ul [] <|
+                                        List.map
+                                            (\replicate -> Html.li [] [ replicate ])
+                                            replicateSimulations
                             ]
                         ]
                     , Html.tr []
@@ -483,11 +570,7 @@ viewSimulation simulation selectedProcessedFileIds =
                             [ Html.text "Replicate" ]
                         , Html.td
                             []
-                            [ Html.text <|
-                                String.fromInt simulation.replicate
-                                    ++ " of "
-                                    ++ String.fromInt simulation.totalReplicates
-                            ]
+                            [ Html.text <| viewReplicate simulation.replicate simulation.totalReplicates ]
                         ]
                     , Html.tr []
                         [ Html.th []
@@ -588,7 +671,7 @@ viewSimulation simulation selectedProcessedFileIds =
                                     Html.text "NA"
 
                                 _ ->
-                                    Html.ul [] <| List.map viewBiomolecule simulation.unvalidatedBiomolecules
+                                    Html.ul [] <| List.map viewUnvalidatedBiomolecule simulation.unvalidatedBiomolecules
                             ]
                         ]
                     , Html.tr
@@ -633,9 +716,43 @@ viewSimulation simulation selectedProcessedFileIds =
                     ]
                 ]
 
+        viewReplicate : Maybe Int -> Maybe Int -> String
+        viewReplicate replicate totalReplicates =
+            let
+                rep =
+                    case replicate of
+                        Just r ->
+                            String.fromInt r
+
+                        _ ->
+                            "NA"
+
+                tot =
+                    case totalReplicates of
+                        Just t ->
+                            " of " ++ String.fromInt t
+
+                        _ ->
+                            ""
+            in
+            rep ++ tot
+
         viewBiomolecule : Biomolecule -> Html.Html Msg
         viewBiomolecule val =
-            Html.li [] [ Html.text <| val.moleculeId ++ " (" ++ val.moleculeIdType ++ ")" ]
+            Html.li [] [ Html.text <| val.name ]
+
+        viewUnvalidatedBiomolecule : UnvalidatedBiomolecule -> Html.Html Msg
+        viewUnvalidatedBiomolecule val =
+            let
+                molType =
+                    case val.moleculeIdType of
+                        Just t ->
+                            " (" ++ t ++ ")"
+
+                        _ ->
+                            ""
+            in
+            Html.li [] [ Html.text <| val.moleculeId ++ molType ]
 
         viewLigand : Ligand -> Html.Html Msg
         viewLigand ligand =
@@ -654,6 +771,57 @@ viewSimulation simulation selectedProcessedFileIds =
                         ++ String.fromInt solvent.concentration
                         ++ solvent.concentrationUnits
                         ++ ")"
+                ]
+
+        viewPaper paper =
+            let
+                doiPrefix =
+                    "https://doi.org/"
+
+                doi =
+                    if String.isEmpty paper.doi then
+                        []
+
+                    else
+                        [ Html.a [ href <| doiPrefix ++ paper.doi ]
+                            [ Html.text <| doiPrefix ++ paper.doi ]
+                        ]
+
+                pages =
+                    case paper.pages of
+                        Just p ->
+                            [ Html.text <| ", " ++ p ]
+
+                        _ ->
+                            []
+
+                number =
+                    case paper.number of
+                        Just n ->
+                            "(" ++ n ++ ")"
+
+                        _ ->
+                            ""
+            in
+            List.concat <|
+                [ [ Html.text <|
+                        paper.authors
+                            ++ " ("
+                            ++ String.fromInt paper.year
+                            ++ "). "
+                            ++ paper.title
+                            ++ ". "
+                  , Html.em []
+                        [ Html.text <|
+                            paper.journal
+                                ++ ", "
+                                ++ String.fromInt paper.volume
+                                ++ number
+                        ]
+                  ]
+                , pages
+                , [ Html.text ". " ]
+                , doi
                 ]
 
         processedFilesTable =
@@ -692,6 +860,53 @@ viewSimulation simulation selectedProcessedFileIds =
             , decimalPlaces = 2
             , decimalSeparator = "."
             }
+
+        viewCreationDate : Time.Posix -> String
+        viewCreationDate creationDate =
+            let
+                month =
+                    case Time.toMonth Time.utc creationDate of
+                        Time.Jan ->
+                            "01"
+
+                        Time.Feb ->
+                            "02"
+
+                        Time.Mar ->
+                            "03"
+
+                        Time.Apr ->
+                            "04"
+
+                        Time.May ->
+                            "05"
+
+                        Time.Jun ->
+                            "06"
+
+                        Time.Jul ->
+                            "07"
+
+                        Time.Aug ->
+                            "08"
+
+                        Time.Sep ->
+                            "09"
+
+                        Time.Oct ->
+                            "10"
+
+                        Time.Nov ->
+                            "11"
+
+                        Time.Dec ->
+                            "12"
+            in
+            String.join "-"
+                [ String.fromInt (Time.toYear Time.utc creationDate)
+                , month
+                , String.fromInt (Time.toDay Time.utc creationDate)
+                ]
 
         viewProcessedFile : List Int -> ProcessedFile -> Html.Html Msg
         viewProcessedFile selectedFileIds file =
