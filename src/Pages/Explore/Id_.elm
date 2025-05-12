@@ -3,6 +3,8 @@ module Pages.Explore.Id_ exposing (Model, Msg, page)
 --import Layouts
 
 import Api
+import Chart
+import Chart.Attributes as CA
 import Components.Header
 import Config
 import Effect exposing (Effect)
@@ -56,6 +58,8 @@ type alias Simulation =
     , integrationTimestepFs : Float
     , temperature : Int
     , fastaSequence : String
+    , rmsdValues : List Float
+    , rmsfValues : List Float
     , software : SimulationSoftware
     , biomolecules : List Biomolecule
     , unvalidatedBiomolecules : List UnvalidatedBiomolecule
@@ -221,6 +225,8 @@ simulationDecoder =
         |> required "integration_timestep_fs" float
         |> required "temperature" int
         |> required "fasta_sequence" string
+        |> required "rmsd_values" (list float)
+        |> required "rmsf_values" (list float)
         |> required "software" softwareDecoder
         |> required "biomolecules" (list biomoleculeDecoder)
         |> required "unvalidated_biomolecules" (list unvalidatedBiomoleculeDecoder)
@@ -654,7 +660,16 @@ viewSimulation simulation selectedProcessedFileIds =
                                     Html.text "NA"
 
                                 _ ->
-                                    Html.ul [] <| List.map viewBiomolecule simulation.biomolecules
+                                    Html.table [ class "table" ]
+                                        [ Html.thead []
+                                            [ Html.tr []
+                                                [ Html.th [] [ Html.text "Name" ]
+                                                , Html.th [] [ Html.text "Uniprot ID" ]
+                                                ]
+                                            ]
+                                        , Html.tbody [] <|
+                                            List.map viewBiomolecule simulation.biomolecules
+                                        ]
                             ]
                         ]
                     , Html.tr
@@ -710,10 +725,47 @@ viewSimulation simulation selectedProcessedFileIds =
                         ]
                     , Html.tr
                         []
-                        [ Html.th [] [ Html.text "Simulation Properties" ]
-                        , Html.td [] [ Html.text "Graphs here of RMSD/RMSF" ]
+                        [ Html.th [] [ Html.text "RMSD Values" ]
+                        , Html.td []
+                            [ viewChart simulation.rmsdValues
+                            , Html.textarea
+                                [ readonly True, class "textarea", rows 7 ]
+                                [ Html.text <|
+                                    String.join ", " <|
+                                        List.map String.fromFloat simulation.rmsdValues
+                                ]
+                            ]
+                        ]
+                    , Html.tr
+                        []
+                        [ Html.th [] [ Html.text "RMSF Values" ]
+                        , Html.td []
+                            [ viewChart simulation.rmsfValues
+                            , Html.textarea
+                                [ readonly True, class "textarea", rows 7 ]
+                                [ Html.text <|
+                                    String.join ", " <|
+                                        List.map String.fromFloat simulation.rmsfValues
+                                ]
+                            ]
                         ]
                     ]
+                ]
+
+        viewChart vals =
+            let
+                data =
+                    List.indexedMap
+                        (\i val -> { x = toFloat i, y = val })
+                        vals
+            in
+            Chart.chart
+                [ CA.height 100
+                , CA.width 200
+                ]
+                [ Chart.xLabels []
+                , Chart.yLabels [ CA.withGrid ]
+                , Chart.series .x [ Chart.interpolated .y [] [] ] data
                 ]
 
         viewReplicate : Maybe Int -> Maybe Int -> String
@@ -739,7 +791,21 @@ viewSimulation simulation selectedProcessedFileIds =
 
         viewBiomolecule : Biomolecule -> Html.Html Msg
         viewBiomolecule val =
-            Html.li [] [ Html.text <| val.name ]
+            let
+                uniprotLink =
+                    case val.uniprotId of
+                        Just id ->
+                            Html.a
+                                [ href <| "https://www.uniprot.org/uniprotkb/" ++ id ++ "/entry" ]
+                                [ Html.text id ]
+
+                        _ ->
+                            Html.text "NA"
+            in
+            Html.tr []
+                [ Html.td [] [ Html.text val.name ]
+                , Html.td [] [ uniprotLink ]
+                ]
 
         viewUnvalidatedBiomolecule : UnvalidatedBiomolecule -> Html.Html Msg
         viewUnvalidatedBiomolecule val =
