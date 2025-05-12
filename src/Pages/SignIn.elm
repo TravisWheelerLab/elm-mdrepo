@@ -70,7 +70,7 @@ view : Shared.Model -> Model -> View Msg
 view shared model =
     let
         orcidUrl =
-            "https://qa.orcid.org/oauth/authorize?"
+            "https://sandbox.orcid.org/oauth/authorize?"
                 ++ "response_type=token"
                 ++ "&redirect_uri=http%3A%2F%2Flocalhost:1234%3Asign-in"
                 ++ "&client_id="
