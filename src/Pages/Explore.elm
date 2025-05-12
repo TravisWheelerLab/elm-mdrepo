@@ -168,8 +168,7 @@ requestData model =
                 ++ search
                 ++ ordering
 
-        _ =
-            Debug.log "url" url
+        --  _ = Debug.log "url" url
     in
     Effect.sendCmd <|
         Http.get
@@ -315,10 +314,6 @@ update msg model =
             )
 
         SimulationApiResponded (Err err) ->
-            let
-                _ =
-                    Debug.log "err" err
-            in
             ( { model
                 | recordCount = Nothing
                 , simulations = RemoteData.Failure err
