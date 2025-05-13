@@ -69,13 +69,16 @@ subscriptions model =
 view : Shared.Model -> Model -> View Msg
 view shared model =
     let
+        redirectUrl = "https://test.mdrepo.org/profile"
+
         orcidUrl =
             "https://sandbox.orcid.org/oauth/authorize?"
                 ++ "response_type=token"
-                ++ "&redirect_uri=http%3A%2F%2Flocalhost:1234%3Asign-in"
+                ++ "&redirect_uri=" 
+                ++ redirectUrl
                 ++ "&client_id="
                 ++ Maybe.withDefault "" shared.orcidClientId
-                ++ "&scope=openid&nonce=whatever"
+                ++ "&scope=/read-limited"
 
         {-
            "https://sandbox.orcid.org/oauth/authorize?client_id="
