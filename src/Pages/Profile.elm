@@ -1,6 +1,7 @@
 module Pages.Profile exposing (Model, Msg, page)
 
 import Auth
+import Components.Header
 import Effect exposing (Effect)
 import Html
 import Page exposing (Page)
@@ -15,7 +16,7 @@ page user shared route =
         { init = init
         , update = update
         , subscriptions = subscriptions
-        , view = view
+        , view = view shared route
         }
 
 
@@ -64,8 +65,16 @@ subscriptions model =
 -- VIEW
 
 
-view : Model -> View Msg
-view model =
-    { title = "MDRepo - User Profile"
-    , body = [ Html.text "/profile" ]
-    }
+view : Shared.Model -> Route () -> Model -> View Msg
+view shared route model =
+    let
+        _ =
+            Debug.log "params" route.params
+
+        _ =
+            Debug.log "query" route.query
+    in
+    Components.Header.view
+        { title = "MDRepo - User Profile"
+        , body = [ Html.text "Hello, Smithers." ]
+        }
