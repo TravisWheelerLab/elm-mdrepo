@@ -53,11 +53,11 @@ type alias Simulation =
     , creationDate : Time.Posix
     , replicate : Maybe Int
     , totalReplicates : Maybe Int
-    , samplingFrequency : Float
-    , duration : Float
+    , samplingFrequency : Maybe Float
+    , duration : Maybe Float
     , integrationTimestepFs : Float
     , temperature : Int
-    , fastaSequence : String
+    , fastaSequence : Maybe String
     , rmsdValues : List Float
     , rmsfValues : List Float
     , software : SimulationSoftware
@@ -81,7 +81,7 @@ type alias SimulationSoftware =
 
 type alias Solvent =
     { name : String
-    , concentration : Int
+    , concentration : Float
     , concentrationUnits : String
     }
 
@@ -117,15 +117,15 @@ type alias Ligand =
 
 
 type alias CreatedBy =
-    { firstName : String
-    , lastName : String
-    , fullName : String
-    , email : String
+    { firstName : Maybe String
+    , lastName : Maybe String
+    , fullName : Maybe String
+    , email : Maybe String
     , institution : Maybe String
-    , isSuperuser : Bool
-    , isStaff : Bool
+    , isSuperuser : Maybe Bool
+    , isStaff : Maybe Bool
     , orcid : Maybe String
-    , canContribute : Bool
+    , canContribute : Maybe Bool
     }
 
 
@@ -136,7 +136,7 @@ type alias ProcessedFile =
     , localFileName : String
     , localFilePath : String
     , description : Maybe String
-    , fileSizeBytes : Int
+    , fileSizeBytes : Maybe Int
     , isPublic : Bool
     }
 
@@ -147,7 +147,7 @@ type alias UploadedFile =
     , filename : String
     , fileType : String
     , description : Maybe String
-    , fileSizeBytes : Int
+    , fileSizeBytes : Maybe Int
     }
 
 
@@ -164,7 +164,7 @@ type alias Paper =
 
 
 type alias ReplicateGroup =
-    { psfHash : String
+    { psfHash : Maybe String
     , simulationSet : List String
     }
 
@@ -222,13 +222,13 @@ simulationDecoder =
         |> required "creation_date" Iso8601.decoder
         |> required "replicate" (nullable int)
         |> required "total_replicates" (nullable int)
-        |> required "sampling_frequency" float
-        |> required "duration" float
+        |> optional "sampling_frequency" (nullable float) Nothing
+        |> optional "duration" (nullable float) Nothing
         |> required "integration_timestep_fs" float
         |> required "temperature" int
-        |> required "fasta_sequence" string
-        |> required "rmsd_values" (list float)
-        |> required "rmsf_values" (list float)
+        |> required "fasta_sequence" (nullable string)
+        |> optional "rmsd_values" (list float) []
+        |> optional "rmsf_values" (list float) []
         |> required "software" softwareDecoder
         |> required "biomolecules" (list biomoleculeDecoder)
         |> required "unvalidated_biomolecules" (list unvalidatedBiomoleculeDecoder)
@@ -257,15 +257,15 @@ paperDecoder =
 createdByDecoder : Decoder CreatedBy
 createdByDecoder =
     Decode.succeed CreatedBy
-        |> required "first_name" string
-        |> required "last_name" string
-        |> required "full_name" string
-        |> required "email" string
-        |> required "institution" (nullable string)
-        |> required "is_superuser" bool
-        |> required "is_staff" bool
-        |> required "orcid" (nullable string)
-        |> required "can_contribute" bool
+        |> optional "first_name" (nullable string) Nothing
+        |> optional "last_name" (nullable string) Nothing
+        |> optional "full_name" (nullable string) Nothing
+        |> optional "email" (nullable string) Nothing
+        |> optional "institution" (nullable string) Nothing
+        |> optional "is_superuser" (nullable bool) Nothing
+        |> optional "is_staff" (nullable bool) Nothing
+        |> optional "orcid" (nullable string) Nothing
+        |> optional "can_contribute" (nullable bool) Nothing
 
 
 contributionDecoder : Decoder Contribution
@@ -286,7 +286,7 @@ processedFileDecoder =
         |> required "local_filename" string
         |> required "local_file_path" string
         |> required "description" (nullable string)
-        |> required "file_size_bytes" int
+        |> required "file_size_bytes" (nullable int)
         |> required "public" bool
 
 
@@ -298,14 +298,14 @@ uploadedFileDecoder =
         |> required "filename" string
         |> required "file_type" string
         |> required "description" (nullable string)
-        |> required "file_size_bytes" int
+        |> required "file_size_bytes" (nullable int)
 
 
 solventDecoder : Decoder Solvent
 solventDecoder =
     Decode.succeed Solvent
         |> required "name" string
-        |> required "concentration" int
+        |> required "concentration" float
         |> required "concentration_units" string
 
 
@@ -326,8 +326,8 @@ ligandDecoder =
 replicateGroupDecoder : Decoder ReplicateGroup
 replicateGroupDecoder =
     Decode.succeed ReplicateGroup
-        |> required "psf_hash" string
-        |> required "simulation_set" (list string)
+        |> optional "psf_hash" (nullable string) Nothing
+        |> optional "simulation_set" (list string) []
 
 
 biomoleculeDecoder : Decoder Biomolecule
@@ -619,11 +619,17 @@ viewSimulation simulation selectedProcessedFileIds =
                         ]
                     , Html.tr []
                         [ Html.th [] [ Html.text "Sampling timestep (ns)" ]
-                        , Html.td [] [ Html.text (String.fromFloat simulation.samplingFrequency) ]
+                        , Html.td []
+                            [ Html.text
+                                (String.fromFloat (Maybe.withDefault 0.0 simulation.samplingFrequency))
+                            ]
                         ]
                     , Html.tr []
                         [ Html.th [] [ Html.text "Duration (ns)" ]
-                        , Html.td [] [ Html.text (String.fromFloat simulation.duration) ]
+                        , Html.td []
+                            [ Html.text
+                                (String.fromFloat <| Maybe.withDefault 0.0 simulation.duration)
+                            ]
                         ]
                     , Html.tr []
                         [ Html.th [] [ Html.text "Integration time step (fs)" ]
@@ -638,7 +644,7 @@ viewSimulation simulation selectedProcessedFileIds =
                         , Html.td []
                             [ Html.textarea
                                 [ readonly True, class "textarea", rows 7 ]
-                                [ Html.text simulation.fastaSequence ]
+                                [ Html.text (Maybe.withDefault "" simulation.fastaSequence) ]
                             ]
                         ]
                     ]
@@ -652,7 +658,7 @@ viewSimulation simulation selectedProcessedFileIds =
                     []
                     [ Html.tr []
                         [ Html.th [] [ Html.text "Created By" ]
-                        , Html.td [] [ Html.text simulation.createdBy.fullName ]
+                        , Html.td [] [ Html.text <| Maybe.withDefault "" simulation.createdBy.fullName ]
                         ]
                     , Html.tr []
                         [ Html.th []
@@ -858,7 +864,7 @@ viewSimulation simulation selectedProcessedFileIds =
                 [ Html.text <|
                     solvent.name
                         ++ " ("
-                        ++ String.fromInt solvent.concentration
+                        ++ String.fromFloat solvent.concentration
                         ++ solvent.concentrationUnits
                         ++ ")"
                 ]
@@ -1011,7 +1017,12 @@ viewSimulation simulation selectedProcessedFileIds =
                     ]
                 , Html.td [] [ Html.text file.localFileName ]
                 , Html.td [] [ Html.text file.fileType ]
-                , Html.td [ align "right" ] [ Html.text (Filesize.formatWith formatSettings file.fileSizeBytes) ]
+                , Html.td [ align "right" ]
+                    [ Html.text
+                        (Filesize.formatWith formatSettings
+                            (Maybe.withDefault 0 file.fileSizeBytes)
+                        )
+                    ]
                 , Html.td [] [ Html.text (Maybe.withDefault "" file.description) ]
                 ]
 
@@ -1021,7 +1032,12 @@ viewSimulation simulation selectedProcessedFileIds =
                 [ Html.td [] [ Html.input [ type_ "checkbox" ] [] ]
                 , Html.td [] [ Html.text file.filename ]
                 , Html.td [] [ Html.text file.fileType ]
-                , Html.td [ align "right" ] [ Html.text (Filesize.formatWith formatSettings file.fileSizeBytes) ]
+                , Html.td [ align "right" ]
+                    [ Html.text
+                        (Filesize.formatWith formatSettings
+                            (Maybe.withDefault 0 file.fileSizeBytes)
+                        )
+                    ]
                 , Html.td [] [ Html.text (Maybe.withDefault "" file.description) ]
                 ]
 

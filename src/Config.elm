@@ -5,7 +5,7 @@ module Config exposing (..)
 
 
 apiHost =
-    "http://localhost:8000/api/v1"
+    "https://test.mdrepo.org/api/v1"
 
 
 mediaHost =

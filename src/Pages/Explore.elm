@@ -92,7 +92,7 @@ type alias ExploreRequest =
 
 type alias Software =
     { name : String
-    , version : String
+    , version : Maybe String
     }
 
 
@@ -206,7 +206,7 @@ softwareDecoder : Decoder Software
 softwareDecoder =
     Decode.succeed Software
         |> required "name" string
-        |> required "version" string
+        |> required "version" (nullable string)
 
 
 biomoleculeDecoder : Decoder Biomolecule
@@ -795,7 +795,9 @@ viewSimulation selectedSimulationIds simulation =
                 []
             ]
         , Html.td []
-            [ Html.text <| Maybe.withDefault "" simulation.shortDescription
+            [ Html.text <|
+                truncate 30
+                    (Maybe.withDefault "" simulation.shortDescription)
             ]
         , Html.td []
             [ Html.a

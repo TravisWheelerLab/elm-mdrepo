@@ -77,16 +77,17 @@ view shared route model =
             Debug.log "query" route.query
 
         redirectUrl =
-            "https://test.mdrepo.org/profile"
+            "https://test.mdrepo.org/sign-in"
 
         orcidUrl =
             "https://sandbox.orcid.org/oauth/authorize?"
-                ++ "response_type=token"
+                ++ "response_type=code"
                 ++ "&redirect_uri="
                 ++ redirectUrl
                 ++ "&client_id="
                 ++ Maybe.withDefault "" shared.orcidClientId
                 ++ "&scope=/read-limited"
+                ++ "&access_type=offline"
 
         {-
               "https://sandbox.orcid.org/oauth/authorize?client_id="
