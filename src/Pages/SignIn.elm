@@ -70,12 +70,6 @@ subscriptions model =
 view : Shared.Model -> Route () -> Model -> View Msg
 view shared route model =
     let
-        _ =
-            Debug.log "params" route.params
-
-        _ =
-            Debug.log "query" route.query
-
         redirectUrl =
             "https://test.mdrepo.org/sign-in"
 

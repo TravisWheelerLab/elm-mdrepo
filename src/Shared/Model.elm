@@ -12,6 +12,7 @@ own file, so they can be imported by `Effect.elm`
 -}
 type alias Model =
     { csrfToken : Maybe String
+    , sessionId : Maybe String
     , apiHost : Maybe String
     , mediaHost : Maybe String
     }

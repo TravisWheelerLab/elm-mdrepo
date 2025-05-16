@@ -1,7 +1,7 @@
 module Components.Header exposing (view)
 
 import Html exposing (Html)
-import Html.Attributes exposing (attribute, class, src, width)
+import Html.Attributes exposing (attribute, class, href, src, width)
 import Route.Path
 import View exposing (View)
 
@@ -12,6 +12,13 @@ view :
     }
     -> View msg
 view props =
+    let
+        loginUri =
+            "/api/accounts/orcid/login/"
+
+        logoutUri =
+            "/api/accounts/logout/"
+    in
     { title = props.title
     , body =
         [ Html.div [ class "container" ]
@@ -51,6 +58,12 @@ view props =
                                 [ Html.text "Profile" ]
                             ]
                         , Html.div
+                            [ class "navbar-item" ]
+                            [ Html.a
+                                [ class "button", href logoutUri ]
+                                [ Html.text "Logout" ]
+                            ]
+                        , Html.div
                             [ class "navbar-item has-dropdown is-hoverable" ]
                             [ Html.a [ class "navbar-link" ] [ Html.text "Contribute" ]
                             , Html.div
@@ -72,7 +85,11 @@ view props =
                         , Html.div
                             [ class "navbar-item" ]
                             [ Html.a
-                                [ class "button is-primary", Route.Path.href Route.Path.SignIn ]
+                                [ class "button is-primary"
+                                , href loginUri
+
+                                --, Route.Path.href Route.Path.SignIn
+                                ]
                                 [ Html.text "Login" ]
                             ]
                         ]

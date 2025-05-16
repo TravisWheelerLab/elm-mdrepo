@@ -167,8 +167,6 @@ requestData model =
                 ++ offset
                 ++ search
                 ++ ordering
-
-        --  _ = Debug.log "url" url
     in
     Effect.sendCmd <|
         Http.get

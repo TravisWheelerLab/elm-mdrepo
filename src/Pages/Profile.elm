@@ -189,10 +189,6 @@ update msg model =
             )
 
         GotProfile (Err error) ->
-            let
-                _ =
-                    Debug.log "error" error
-            in
             ( { model
                 | error = Just <| Api.toUserFriendlyMessage error
               }
@@ -227,12 +223,6 @@ subscriptions model =
 view : Shared.Model -> Route () -> Model -> View Msg
 view shared route model =
     let
-        _ =
-            Debug.log "params" route.params
-
-        _ =
-            Debug.log "query" route.query
-
         profile =
             case model.profile of
                 Just p ->
@@ -262,6 +252,29 @@ viewProfile profile =
                 [ Html.tr []
                     [ Html.th [] [ Html.text "Name" ]
                     , Html.td [] [ Html.text <| Maybe.withDefault "NA" profile.fullName ]
+                    ]
+                , Html.tr []
+                    [ Html.th [] [ Html.text "Institution" ]
+                    , Html.td [] [ Html.text <| Maybe.withDefault "NA" profile.institution ]
+                    ]
+                , Html.tr []
+                    [ Html.th [] [ Html.text "Email" ]
+                    , Html.td [] [ Html.text <| Maybe.withDefault "NA" profile.email ]
+                    ]
+                , Html.tr []
+                    [ Html.th [] [ Html.text "ORCID" ]
+                    , Html.td [] [ Html.text <| Maybe.withDefault "NA" profile.orcid ]
+                    ]
+                , Html.tr []
+                    [ Html.th [] [ Html.text "Can Contribute" ]
+                    , Html.td []
+                        [ Html.text <|
+                            if Maybe.withDefault False profile.canContribute then
+                                "Yes"
+
+                            else
+                                "No"
+                        ]
                     ]
                 ]
             ]

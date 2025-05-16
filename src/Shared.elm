@@ -30,7 +30,8 @@ import Shared.Msg
 type alias Flags =
     { apiHost : Maybe String
     , mediaHost : Maybe String
-    , cookies : Maybe String
+    , csrfToken : Maybe String
+    , sessionId : Maybe String
     }
 
 
@@ -45,7 +46,8 @@ decoder =
     Json.Decode.succeed Flags
         |> optional "API_HOST" (nullable string) Nothing
         |> optional "MEDIA_HOST" (nullable string) Nothing
-        |> optional "COOKIES" (nullable string) Nothing
+        |> optional "CSRF_TOKEN" (nullable string) Nothing
+        |> optional "SESSION_ID" (nullable string) Nothing
 
 
 
@@ -62,39 +64,18 @@ init flagsResult route =
         model =
             case flagsResult of
                 Ok flags ->
-                    let
-                        _ =
-                            Debug.log "flags.cookies" flags.cookies
-
-                        semi =
-                            Maybe.withDefault Regex.never <| Regex.fromString ";\\s*"
-
-                        equal =
-                            Maybe.withDefault Regex.never <| Regex.fromString "="
-
-                        parts =
-                            flags.cookies
-                                |> Maybe.map (Regex.split semi)
-                                |> Maybe.map (List.map (Regex.split semi))
-
-                        --|> Maybe.map (Tuple.pair)
-                        --|> Maybe.map Dict.fromList
-                        _ =
-                            Debug.log "parts" parts
-                    in
                     { apiHost = flags.apiHost
                     , mediaHost = flags.mediaHost
-                    , csrfToken = Nothing
+                    , csrfToken = flags.csrfToken
+                    , sessionId = flags.sessionId
                     }
 
                 _ ->
                     { apiHost = Nothing
                     , mediaHost = Nothing
                     , csrfToken = Nothing
+                    , sessionId = Nothing
                     }
-
-        _ =
-            Debug.log "init model" model
     in
     ( model
     , Effect.none

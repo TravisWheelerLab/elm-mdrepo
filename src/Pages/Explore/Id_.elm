@@ -470,7 +470,6 @@ subscriptions model =
 view : Model -> View Msg
 view model =
     let
-        --_ = Debug.log "model" model
         body =
             case model.simulation of
                 RemoteData.NotAsked ->
@@ -509,7 +508,6 @@ view model =
 viewSimulation : Simulation -> List Int -> Html.Html Msg
 viewSimulation simulation selectedProcessedFileIds =
     let
-        --_ = Debug.log "simulation" simulation
         makeSimulationLink simId =
             let
                 splitter =
