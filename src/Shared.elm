@@ -12,9 +12,11 @@ module Shared exposing
 
 -}
 
+import Dict
 import Effect exposing (Effect)
 import Json.Decode exposing (Decoder, nullable, string)
 import Json.Decode.Pipeline exposing (optional)
+import Regex
 import Route exposing (Route)
 import Route.Path
 import Shared.Model
@@ -26,10 +28,9 @@ import Shared.Msg
 
 
 type alias Flags =
-    { orcidClientId : Maybe String
-    , orcidClientSecret : Maybe String
-    , apiHost : Maybe String
+    { apiHost : Maybe String
     , mediaHost : Maybe String
+    , cookies : Maybe String
     }
 
 
@@ -42,10 +43,9 @@ type alias Flags =
 decoder : Json.Decode.Decoder Flags
 decoder =
     Json.Decode.succeed Flags
-        |> optional "ORCID_CLIENT_ID" (nullable string) Nothing
-        |> optional "ORCID_CLIENT_SECRET" (nullable string) Nothing
         |> optional "API_HOST" (nullable string) Nothing
         |> optional "MEDIA_HOST" (nullable string) Nothing
+        |> optional "COOKIES" (nullable string) Nothing
 
 
 
@@ -62,20 +62,39 @@ init flagsResult route =
         model =
             case flagsResult of
                 Ok flags ->
-                    { token = Nothing
-                    , orcidClientId = flags.orcidClientId
-                    , orcidClientSecret = flags.orcidClientSecret
-                    , apiHost = flags.apiHost
+                    let
+                        _ =
+                            Debug.log "flags.cookies" flags.cookies
+
+                        semi =
+                            Maybe.withDefault Regex.never <| Regex.fromString ";\\s*"
+
+                        equal =
+                            Maybe.withDefault Regex.never <| Regex.fromString "="
+
+                        parts =
+                            flags.cookies
+                                |> Maybe.map (Regex.split semi)
+                                |> Maybe.map (List.map (Regex.split semi))
+
+                        --|> Maybe.map (Tuple.pair)
+                        --|> Maybe.map Dict.fromList
+                        _ =
+                            Debug.log "parts" parts
+                    in
+                    { apiHost = flags.apiHost
                     , mediaHost = flags.mediaHost
+                    , csrfToken = Nothing
                     }
 
                 _ ->
-                    { token = Nothing
-                    , orcidClientId = Nothing
-                    , orcidClientSecret = Nothing
-                    , apiHost = Nothing
+                    { apiHost = Nothing
                     , mediaHost = Nothing
+                    , csrfToken = Nothing
                     }
+
+        _ =
+            Debug.log "init model" model
     in
     ( model
     , Effect.none

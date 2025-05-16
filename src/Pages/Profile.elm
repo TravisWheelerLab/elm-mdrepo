@@ -1,5 +1,6 @@
 module Pages.Profile exposing (Model, Msg, page)
 
+import Api
 import Auth
 import Components.Header
 import Config
@@ -8,13 +9,56 @@ import Effect exposing (Effect)
 import Html
 import Html.Attributes exposing (class)
 import Http
-import Json.Decode as Decode exposing (Decoder, int, list, nullable, string)
-import Json.Decode.Pipeline exposing (required)
+import Json.Decode as Decode exposing (Decoder, bool, int, list, nullable, string)
+import Json.Decode.Pipeline exposing (optional, required)
 import Maybe
 import Page exposing (Page)
 import Route exposing (Route)
 import Shared
 import View exposing (View)
+
+
+
+{-
+   {
+     "first_name": "Ken",
+     "last_name": "Youens-Clark",
+     "full_name": "Ken Youens-Clark",
+     "email": "kyclark@arizona.edu",
+     "institution": null,
+     "is_superuser": true,
+     "is_staff": true,
+     "orcid": "0000-0001-9961-144X",
+     "can_contribute": false
+   }
+-}
+
+
+type alias Profile =
+    { firstName : Maybe String
+    , lastName : Maybe String
+    , fullName : Maybe String
+    , email : Maybe String
+    , institution : Maybe String
+    , isSuperuser : Maybe Bool
+    , isStaff : Maybe Bool
+    , orcid : Maybe String
+    , canContribute : Maybe Bool
+    }
+
+
+profileDecoder : Decoder Profile
+profileDecoder =
+    Decode.succeed Profile
+        |> optional "first_name" (nullable string) Nothing
+        |> optional "last_name" (nullable string) Nothing
+        |> optional "full_name" (nullable string) Nothing
+        |> optional "email" (nullable string) Nothing
+        |> optional "institution" (nullable string) Nothing
+        |> optional "is_superuser" (nullable bool) Nothing
+        |> optional "is_staff" (nullable bool) Nothing
+        |> optional "orcid" (nullable string) Nothing
+        |> optional "can_contribute" (nullable bool) Nothing
 
 
 
@@ -50,10 +94,12 @@ import View exposing (View)
            |> required "scope" string
            |> required "refresh_token" string
 -}
+-- page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
+-- page user shared route =
 
 
-page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
-page user shared route =
+page : Shared.Model -> Route () -> Page Model Msg
+page shared route =
     Page.new
         { init = init
         , update = update
@@ -67,12 +113,16 @@ page user shared route =
 
 
 type alias Model =
-    { error : Maybe String }
+    { error : Maybe String
+    , profile : Maybe Profile
+    }
 
 
 initialModel : Model
 initialModel =
-    { error = Nothing }
+    { error = Nothing
+    , profile = Nothing
+    }
 
 
 init : () -> ( Model, Effect Msg )
@@ -101,7 +151,11 @@ init () =
        in
     -}
     ( initialModel
-    , Effect.none
+    , Effect.sendCmd <|
+        Http.get
+            { url = Config.apiHost ++ "/getProfile"
+            , expect = Http.expectJson GotProfile (Decode.list profileDecoder)
+            }
     )
 
 
@@ -110,7 +164,7 @@ init () =
 
 
 type Msg
-    = NoOp
+    = GotProfile (Result Http.Error (List Profile))
 
 
 
@@ -120,8 +174,30 @@ type Msg
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
-        NoOp ->
-            ( model, Effect.none )
+        GotProfile (Ok profiles) ->
+            let
+                profile =
+                    case List.length profiles of
+                        1 ->
+                            List.head profiles
+
+                        _ ->
+                            Nothing
+            in
+            ( { model | profile = profile }
+            , Effect.none
+            )
+
+        GotProfile (Err error) ->
+            let
+                _ =
+                    Debug.log "error" error
+            in
+            ( { model
+                | error = Just <| Api.toUserFriendlyMessage error
+              }
+            , Effect.none
+            )
 
 
 
@@ -156,6 +232,14 @@ view shared route model =
 
         _ =
             Debug.log "query" route.query
+
+        profile =
+            case model.profile of
+                Just p ->
+                    viewProfile p
+
+                _ ->
+                    Html.div [] []
     in
     Components.Header.view
         { title = "MDRepo - User Profile"
@@ -163,6 +247,22 @@ view shared route model =
             [ Html.div
                 [ class "container" ]
                 [ Html.text <| "Error = " ++ Maybe.withDefault "None" model.error
+                , profile
                 ]
             ]
         }
+
+
+viewProfile : Profile -> Html.Html Msg
+viewProfile profile =
+    Html.div [ class "box" ]
+        [ Html.table [ class "table" ]
+            [ Html.thead [] []
+            , Html.tbody []
+                [ Html.tr []
+                    [ Html.th [] [ Html.text "Name" ]
+                    , Html.td [] [ Html.text <| Maybe.withDefault "NA" profile.fullName ]
+                    ]
+                ]
+            ]
+        ]

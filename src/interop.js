@@ -3,6 +3,8 @@
 // The value returned here will be passed as flags
 // into your `Shared.init` function.
 export const flags = ({ env }) => {
+  env["COOKIES"] = document.cookie;
+  console.log(env);
   return env;
 };
 

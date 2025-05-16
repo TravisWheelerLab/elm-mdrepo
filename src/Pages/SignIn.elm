@@ -84,8 +84,8 @@ view shared route model =
                 ++ "response_type=code"
                 ++ "&redirect_uri="
                 ++ redirectUrl
-                ++ "&client_id="
-                ++ Maybe.withDefault "" shared.orcidClientId
+                -- ++ "&client_id="
+                -- ++ Maybe.withDefault "" shared.orcidClientId
                 ++ "&scope=/read-limited"
                 ++ "&access_type=offline"
 
