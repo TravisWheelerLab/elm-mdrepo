@@ -108,4 +108,5 @@ view shared route model =
                     ]
                 ]
             ]
+        , shared = shared
         }

@@ -4,9 +4,24 @@ module Config exposing (..)
 --    "https://staging.mdrepo.org"
 
 
+apiHostName =
+    "http://localhost"
+
+
 apiHost =
-    --"http://localhost:8000/api/v1"
-    "https://test.mdrepo.org/api/v1"
+    apiHostName ++ "/api/v1"
+
+
+loginUrl =
+    apiHostName ++ "/api/accounts/orcid/login/"
+
+
+logoutUrl =
+    apiHostName ++ "/api/accounts/logout/"
+
+
+
+--"https://test.mdrepo.org/api/v1"
 
 
 mediaHost =

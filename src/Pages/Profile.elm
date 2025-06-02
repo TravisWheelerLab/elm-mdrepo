@@ -1,20 +1,22 @@
 module Pages.Profile exposing (Model, Msg, page)
 
+--import Shared.Msg
+--import Auth
+
 import Api
-import Auth
 import Components.Header
 import Config
-import Dict
-import Effect exposing (Effect)
+import Effect exposing (Effect, loadExternalUrl)
 import Html
 import Html.Attributes exposing (class)
 import Http
-import Json.Decode as Decode exposing (Decoder, bool, int, list, nullable, string)
+import Json.Decode as Decode exposing (Decoder, bool, nullable, string)
 import Json.Decode.Pipeline exposing (optional, required)
 import Maybe
 import Page exposing (Page)
 import Route exposing (Route)
 import Shared
+import Types exposing (Profile)
 import View exposing (View)
 
 
@@ -34,26 +36,13 @@ import View exposing (View)
 -}
 
 
-type alias Profile =
-    { firstName : Maybe String
-    , lastName : Maybe String
-    , fullName : Maybe String
-    , email : Maybe String
-    , institution : Maybe String
-    , isSuperuser : Maybe Bool
-    , isStaff : Maybe Bool
-    , orcid : Maybe String
-    , canContribute : Maybe Bool
-    }
-
-
 profileDecoder : Decoder Profile
 profileDecoder =
     Decode.succeed Profile
-        |> optional "first_name" (nullable string) Nothing
-        |> optional "last_name" (nullable string) Nothing
-        |> optional "full_name" (nullable string) Nothing
-        |> optional "email" (nullable string) Nothing
+        |> required "first_name" string
+        |> required "last_name" string
+        |> required "full_name" string
+        |> required "email" string
         |> optional "institution" (nullable string) Nothing
         |> optional "is_superuser" (nullable bool) Nothing
         |> optional "is_staff" (nullable bool) Nothing
@@ -185,14 +174,14 @@ update msg model =
                             Nothing
             in
             ( { model | profile = profile }
-            , Effect.none
+            , Effect.login profile
             )
 
         GotProfile (Err error) ->
             ( { model
                 | error = Just <| Api.toUserFriendlyMessage error
               }
-            , Effect.none
+            , loadExternalUrl Config.loginUrl
             )
 
 
@@ -240,6 +229,7 @@ view shared route model =
                 , profile
                 ]
             ]
+        , shared = shared
         }
 
 
@@ -251,7 +241,7 @@ viewProfile profile =
             , Html.tbody []
                 [ Html.tr []
                     [ Html.th [] [ Html.text "Name" ]
-                    , Html.td [] [ Html.text <| Maybe.withDefault "NA" profile.fullName ]
+                    , Html.td [] [ Html.text profile.fullName ]
                     ]
                 , Html.tr []
                     [ Html.th [] [ Html.text "Institution" ]
@@ -259,7 +249,7 @@ viewProfile profile =
                     ]
                 , Html.tr []
                     [ Html.th [] [ Html.text "Email" ]
-                    , Html.td [] [ Html.text <| Maybe.withDefault "NA" profile.email ]
+                    , Html.td [] [ Html.text profile.email ]
                     ]
                 , Html.tr []
                     [ Html.th [] [ Html.text "ORCID" ]

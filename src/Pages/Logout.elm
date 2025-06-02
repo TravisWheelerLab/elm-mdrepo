@@ -1,12 +1,10 @@
-module Pages.NotFound_ exposing (Model, Msg, page)
+module Pages.Logout exposing (Model, Msg, page)
 
-import Components.Header
-import Effect exposing (Effect)
+import Config
+import Effect exposing (Effect, loadExternalUrl)
 import Html
-import Html.Attributes exposing (class)
 import Page exposing (Page)
 import Route exposing (Route)
-import Route.Path
 import Shared
 import View exposing (View)
 
@@ -17,7 +15,7 @@ page shared route =
         { init = init
         , update = update
         , subscriptions = subscriptions
-        , view = view shared
+        , view = view
         }
 
 
@@ -32,7 +30,7 @@ type alias Model =
 init : () -> ( Model, Effect Msg )
 init () =
     ( {}
-    , Effect.none
+    , loadExternalUrl Config.logoutUrl
     )
 
 
@@ -66,14 +64,8 @@ subscriptions model =
 -- VIEW
 
 
-view : Shared.Model -> Model -> View Msg
-view shared model =
-    Components.Header.view
-        { title = "MDRepo - Not Found"
-        , body =
-            [ Html.div
-                [ class "container" ]
-                [ Html.text "Page not found" ]
-            ]
-        , shared = shared
-        }
+view : Model -> View Msg
+view model =
+    { title = "Pages.Logout"
+    , body = [ Html.text "/logout" ]
+    }

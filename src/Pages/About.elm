@@ -16,7 +16,7 @@ page shared route =
         { init = init
         , update = update
         , subscriptions = subscriptions
-        , view = view
+        , view = view shared
         }
 
 
@@ -65,8 +65,8 @@ subscriptions model =
 -- VIEW
 
 
-view : Model -> View Msg
-view model =
+view : Shared.Model -> Model -> View Msg
+view shared model =
     Components.Header.view
         { title = "MDRepo - About"
         , body =
@@ -88,4 +88,5 @@ view model =
                     ]
                 ]
             ]
+        , shared = shared
         }
