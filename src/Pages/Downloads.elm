@@ -1,6 +1,7 @@
 module Pages.Downloads exposing (Model, Msg, page)
 
 import Api
+import Auth
 import Bitwise exposing (or)
 import Components.Header
 import Config
@@ -17,8 +18,8 @@ import Types exposing (DownloadToken, Downloads)
 import View exposing (View)
 
 
-page : Shared.Model -> Route () -> Page Model Msg
-page shared route =
+page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
+page user shared route =
     Page.new
         { init = init
         , update = update

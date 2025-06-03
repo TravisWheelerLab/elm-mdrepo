@@ -1,6 +1,7 @@
 module Pages.Uploads exposing (Model, Msg, page)
 
 import Api
+import Auth
 import Components.Header
 import Config
 import Decoders exposing (uploadTicketsResultDecoder)
@@ -16,8 +17,8 @@ import Types exposing (UploadTicket, UploadTicketSimulation, UploadTicketsResult
 import View exposing (View)
 
 
-page : Shared.Model -> Route () -> Page Model Msg
-page shared route =
+page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
+page user shared route =
     Page.new
         { init = init
         , update = update

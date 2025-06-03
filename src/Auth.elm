@@ -5,26 +5,25 @@ import Dict
 import Route exposing (Route)
 import Route.Path
 import Shared
+import Types exposing (User)
 import View exposing (View)
 
 
 type alias User =
-    { token : String }
+    Types.User
 
 
 {-| Called before an auth-only page is loaded.
 -}
 onPageLoad : Shared.Model -> Route () -> Auth.Action.Action User
 onPageLoad shared route =
-    case shared.csrfToken of
-        Just token ->
-            Auth.Action.loadPageWithUser
-                { token = token
-                }
+    case shared.user of
+        Just user ->
+            Auth.Action.loadPageWithUser user
 
         Nothing ->
             Auth.Action.pushRoute
-                { path = Route.Path.SignIn
+                { path = Route.Path.Login
                 , query =
                     Dict.fromList
                         [ ( "from", route.url.path )

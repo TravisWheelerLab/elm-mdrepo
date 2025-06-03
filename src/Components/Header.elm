@@ -18,11 +18,11 @@ view props =
     , body =
         let
             userMenu =
-                case props.shared.profile of
-                    Just profile ->
+                case props.shared.user of
+                    Just user ->
                         Html.div
                             [ class "navbar-item has-dropdown is-hoverable" ]
-                            [ Html.a [ class "navbar-link" ] [ Html.text profile.fullName ]
+                            [ Html.a [ class "navbar-link" ] [ Html.text user.fullName ]
                             , Html.div
                                 [ class "navbar-dropdown" ]
                                 [ Html.div

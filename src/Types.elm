@@ -4,7 +4,7 @@ import Json.Encode exposing (int)
 import Time
 
 
-type alias Profile =
+type alias User =
     { firstName : String
     , lastName : String
     , fullName : String
@@ -220,7 +220,7 @@ type alias UploadTicketFile =
 
 type alias UploadTicketInstance =
     { id : Int
-    , user : Profile
+    , user : User
     , ticket : Int
     , createdOn : String
     , simulation : List UploadTicketInstanceSimulation

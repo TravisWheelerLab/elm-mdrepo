@@ -1,6 +1,6 @@
 module Shared.Model exposing (Model)
 
-import Types exposing (Profile)
+import Types exposing (User)
 
 
 {-| Normally, this value would live in "Shared.elm"
@@ -15,5 +15,5 @@ type alias Model =
     , sessionId : Maybe String
     , apiHost : Maybe String
     , mediaHost : Maybe String
-    , profile : Maybe Profile
+    , user : Maybe User
     }

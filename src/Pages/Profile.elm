@@ -4,10 +4,11 @@ module Pages.Profile exposing (Model, Msg, page)
 --import Auth
 
 import Api
+import Auth
 import Components.Header
 import Config
-import Decoders exposing (profileDecoder)
-import Effect exposing (Effect, loadExternalUrl)
+import Decoders exposing (userDecoder)
+import Effect exposing (Effect, loadExternalUrl, none)
 import Html
 import Html.Attributes exposing (class)
 import Http
@@ -16,7 +17,7 @@ import Maybe
 import Page exposing (Page)
 import Route exposing (Route)
 import Shared
-import Types exposing (Profile)
+import Types exposing (User)
 import View exposing (View)
 
 
@@ -41,14 +42,14 @@ page shared route =
 
 type alias Model =
     { error : Maybe String
-    , profile : Maybe Profile
+    , user : Maybe User
     }
 
 
 initialModel : Model
 initialModel =
     { error = Nothing
-    , profile = Nothing
+    , user = Nothing
     }
 
 
@@ -58,7 +59,7 @@ init () =
     , Effect.sendCmd <|
         Http.get
             { url = Config.apiHost ++ "/getProfile"
-            , expect = Http.expectJson GotProfile (Json.Decode.list profileDecoder)
+            , expect = Http.expectJson GotUser (Json.Decode.list userDecoder)
             }
     )
 
@@ -68,27 +69,27 @@ init () =
 
 
 type Msg
-    = GotProfile (Result Http.Error (List Profile))
+    = GotUser (Result Http.Error (List User))
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
-        GotProfile (Ok profiles) ->
+        GotUser (Ok users) ->
             let
-                profile =
-                    case List.length profiles of
+                user =
+                    case List.length users of
                         1 ->
-                            List.head profiles
+                            List.head users
 
                         _ ->
                             Nothing
             in
-            ( { model | profile = profile }
-            , Effect.login profile
+            ( { model | user = user }
+            , Effect.login user
             )
 
-        GotProfile (Err error) ->
+        GotUser (Err error) ->
             ( { model
                 | error = Just <| Api.toUserFriendlyMessage error
               }
@@ -111,61 +112,57 @@ subscriptions model =
 
 view : Shared.Model -> Route () -> Model -> View Msg
 view shared route model =
-    let
-        profile =
-            case model.profile of
-                Just p ->
-                    viewProfile p
-
-                _ ->
-                    Html.div [] []
-    in
     Components.Header.view
         { title = "MDRepo - User Profile"
         , body =
             [ Html.div
                 [ class "container" ]
                 [ Html.text <| "Error = " ++ Maybe.withDefault "None" model.error
-                , profile
+                , viewUser model.user
                 ]
             ]
         , shared = shared
         }
 
 
-viewProfile : Profile -> Html.Html Msg
-viewProfile profile =
-    Html.div [ class "box" ]
-        [ Html.table [ class "table" ]
-            [ Html.thead [] []
-            , Html.tbody []
-                [ Html.tr []
-                    [ Html.th [] [ Html.text "Name" ]
-                    , Html.td [] [ Html.text profile.fullName ]
-                    ]
-                , Html.tr []
-                    [ Html.th [] [ Html.text "Institution" ]
-                    , Html.td [] [ Html.text <| Maybe.withDefault "NA" profile.institution ]
-                    ]
-                , Html.tr []
-                    [ Html.th [] [ Html.text "Email" ]
-                    , Html.td [] [ Html.text profile.email ]
-                    ]
-                , Html.tr []
-                    [ Html.th [] [ Html.text "ORCID" ]
-                    , Html.td [] [ Html.text <| Maybe.withDefault "NA" profile.orcid ]
-                    ]
-                , Html.tr []
-                    [ Html.th [] [ Html.text "Can Contribute" ]
-                    , Html.td []
-                        [ Html.text <|
-                            if Maybe.withDefault False profile.canContribute then
-                                "Yes"
+viewUser : Maybe User -> Html.Html Msg
+viewUser curUser =
+    case curUser of
+        Nothing ->
+            Html.div [] []
 
-                            else
-                                "No"
+        Just user ->
+            Html.div [ class "box" ]
+                [ Html.table [ class "table" ]
+                    [ Html.thead [] []
+                    , Html.tbody []
+                        [ Html.tr []
+                            [ Html.th [] [ Html.text "Name" ]
+                            , Html.td [] [ Html.text user.fullName ]
+                            ]
+                        , Html.tr []
+                            [ Html.th [] [ Html.text "Institution" ]
+                            , Html.td [] [ Html.text <| Maybe.withDefault "NA" user.institution ]
+                            ]
+                        , Html.tr []
+                            [ Html.th [] [ Html.text "Email" ]
+                            , Html.td [] [ Html.text user.email ]
+                            ]
+                        , Html.tr []
+                            [ Html.th [] [ Html.text "ORCID" ]
+                            , Html.td [] [ Html.text <| Maybe.withDefault "NA" user.orcid ]
+                            ]
+                        , Html.tr []
+                            [ Html.th [] [ Html.text "Can Contribute" ]
+                            , Html.td []
+                                [ Html.text <|
+                                    if Maybe.withDefault False user.canContribute then
+                                        "Yes"
+
+                                    else
+                                        "No"
+                                ]
+                            ]
                         ]
                     ]
                 ]
-            ]
-        ]

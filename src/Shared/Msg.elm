@@ -2,7 +2,7 @@ module Shared.Msg exposing (Msg(..))
 
 {-| -}
 
-import Types exposing (Profile)
+import Types exposing (User)
 
 
 {-| Normally, this value would live in "Shared.elm"
@@ -14,5 +14,5 @@ own file, so they can be imported by `Effect.elm`
 -}
 type Msg
     = NoOp
-    | Login (Maybe Profile)
+    | Login (Maybe User)
     | Logout

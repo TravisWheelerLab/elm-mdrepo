@@ -31,7 +31,7 @@ import Route.Path
 import Shared.Model
 import Shared.Msg
 import Task
-import Types exposing (Profile)
+import Types exposing (User)
 import Url exposing (Url)
 
 
@@ -215,9 +215,9 @@ toCmd options effect =
                 |> Task.perform options.fromSharedMsg
 
 
-login : Maybe Profile -> Effect msg
-login profile =
-    SendSharedMsg (Shared.Msg.Login profile)
+login : Maybe User -> Effect msg
+login user =
+    SendSharedMsg (Shared.Msg.Login user)
 
 
 logout : Effect msg

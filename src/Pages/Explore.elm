@@ -13,6 +13,7 @@ import Json.Decode as Decode exposing (Decoder, decodeString, float, int, nullab
 import Json.Decode.Pipeline exposing (hardcoded, optional, required)
 import Json.Encode as Encode exposing (Value)
 import Maybe
+import Maybe.Extra exposing (isJust)
 import Page exposing (Page)
 import RemoteData exposing (RemoteData, WebData)
 import Route exposing (Route)
@@ -94,16 +95,6 @@ type alias Software =
     { name : String
     , version : Maybe String
     }
-
-
-
-{- type alias DownloadTokenRequest =
-   { simulationIds : List Int
-   , downloadAllFileTypes : Bool
-   , selectedFileTypes : List String
-   }
--}
--- TODO: Effect.sendApiRequest?
 
 
 initialModel : Model
@@ -439,7 +430,7 @@ view shared model =
                     Html.div [ class "container" ]
                         [ Html.div [ class "box" ]
                             [ viewDownloadDialog model
-                            , pagination model
+                            , pagination shared model
                             , viewSimulations simulations model.selectedSimulationIds model.sortColumn
                             ]
                         ]
@@ -570,8 +561,8 @@ viewDownloadDialog model =
         Html.div [] []
 
 
-pagination : Model -> Html Msg
-pagination model =
+pagination : Shared.Model -> Model -> Html Msg
+pagination shared model =
     let
         {- prevUrl =
                case model.previousUrl of
@@ -593,18 +584,25 @@ pagination model =
         -}
         downloadButton =
             let
-                buttonText =
-                    case List.length model.selectedSimulationIds of
-                        0 ->
-                            "Download"
+                loggedIn =
+                    isJust shared.user
 
-                        num ->
-                            "Download " ++ String.fromInt num
+                buttonText =
+                    if loggedIn then
+                        case List.length model.selectedSimulationIds of
+                            0 ->
+                                "Download"
+
+                            num ->
+                                "Download " ++ String.fromInt num
+
+                    else
+                        "Login to Download"
             in
             Html.div [ class "control" ]
                 [ Html.button
                     [ class "button is-primary"
-                    , disabled (List.isEmpty model.selectedSimulationIds)
+                    , disabled (List.isEmpty model.selectedSimulationIds || not loggedIn)
                     , onClick ShowDownloadDialog
                     ]
                     [ Html.text buttonText ]

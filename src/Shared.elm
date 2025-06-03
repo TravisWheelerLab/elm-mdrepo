@@ -68,7 +68,7 @@ init flagsResult route =
                     , mediaHost = flags.mediaHost
                     , csrfToken = flags.csrfToken
                     , sessionId = flags.sessionId
-                    , profile = Nothing
+                    , user = Nothing
                     }
 
                 _ ->
@@ -76,7 +76,7 @@ init flagsResult route =
                     , mediaHost = Nothing
                     , csrfToken = Nothing
                     , sessionId = Nothing
-                    , profile = Nothing
+                    , user = Nothing
                     }
     in
     ( model
@@ -95,11 +95,11 @@ type alias Msg =
 update : Route () -> Msg -> Model -> ( Model, Effect Msg )
 update route msg model =
     case msg of
-        Shared.Msg.Login profile ->
-            ( { model | profile = profile }, Effect.none )
+        Shared.Msg.Login user ->
+            ( { model | user = user }, Effect.none )
 
         Shared.Msg.Logout ->
-            ( { model | profile = Nothing }, Effect.none )
+            ( { model | user = Nothing }, Effect.none )
 
         Shared.Msg.NoOp ->
             ( model

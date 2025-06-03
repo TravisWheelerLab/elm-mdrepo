@@ -6,9 +6,9 @@ import Json.Decode.Pipeline exposing (optional, required)
 import Types exposing (..)
 
 
-profileDecoder : Decoder Profile
-profileDecoder =
-    Decode.succeed Profile
+userDecoder : Decoder User
+userDecoder =
+    Decode.succeed User
         |> required "first_name" string
         |> required "last_name" string
         |> required "full_name" string
@@ -245,7 +245,7 @@ uploadTicketInstanceDecoder : Decoder UploadTicketInstance
 uploadTicketInstanceDecoder =
     Decode.succeed UploadTicketInstance
         |> required "id" int
-        |> required "user" profileDecoder
+        |> required "user" userDecoder
         |> required "ticket" int
         |> required "createdOn" string
         |> required "simulation" (list uploadTicketInstanceSimulationDecoder)
