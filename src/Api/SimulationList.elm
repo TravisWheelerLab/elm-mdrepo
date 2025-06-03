@@ -1,6 +1,5 @@
 module Api.SimulationList exposing (getSimulations)
 
-import Config
 import Http
 import Json.Decode
 
@@ -17,10 +16,11 @@ type alias Error =
 getSimulations :
     { onResponse : Result Http.Error (List Simulation) -> msg
     }
+    -> Shared.Model
     -> Cmd msg
-getSimulations options =
+getSimulations options shared =
     Http.get
-        { url = Config.apiHost ++ "/getSimulations"
+        { url = shared.apiHost ++ "/getSimulations"
         , expect = Http.expectJson options.onResponse decoder
         }
 

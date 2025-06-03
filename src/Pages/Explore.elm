@@ -4,7 +4,6 @@ import Api
 import Char exposing (isAlphaNum)
 import Chart.Attributes exposing (onTopOrBottom)
 import Components.Header
-import Config
 import Effect exposing (Effect)
 import Html exposing (Html)
 import Html.Attributes exposing (checked, class, disabled, name, placeholder, selected, src, type_, width)
@@ -26,7 +25,7 @@ import View exposing (View)
 page : Shared.Model -> Route () -> Page Model Msg
 page shared route =
     Page.new
-        { init = init
+        { init = init shared
         , update = update shared
         , subscriptions = subscriptions
         , view = view shared
@@ -125,15 +124,15 @@ initialModel =
     }
 
 
-init : () -> ( Model, Effect Msg )
-init () =
+init : Shared.Model -> () -> ( Model, Effect Msg )
+init shared () =
     ( initialModel
-    , requestData initialModel
+    , requestData shared initialModel
     )
 
 
-requestData : Model -> Effect Msg
-requestData model =
+requestData : Shared.Model -> Model -> Effect Msg
+requestData shared model =
     let
         offset =
             if model.pageNumber > 1 then
@@ -160,7 +159,7 @@ requestData model =
             "&ordering=" ++ model.sortColumn
 
         url =
-            Config.apiHost
+            shared.apiHost
                 ++ "/getSimulations?limit="
                 ++ String.fromInt model.pageSize
                 ++ offset
@@ -301,7 +300,7 @@ update shared msg model =
                 Http.request
                     { method = "POST"
                     , headers = headers
-                    , url = Config.apiHost ++ "/downloads"
+                    , url = shared.apiHost ++ "/downloads"
                     , body = Http.jsonBody <| downloadTokenRequestEncoder model
                     , expect = Http.expectJson GotDownloadToken downloadTokenDecoder
                     , timeout = Nothing
@@ -346,7 +345,7 @@ update shared msg model =
                 newModel =
                     { model | sortColumn = newSortColumn }
             in
-            ( newModel, requestData newModel )
+            ( newModel, requestData shared newModel )
 
         SelectAllDownloadFileTypes ->
             ( { model | showDownloadFileTypes = False, downloadFileTypes = [] }, Effect.none )
@@ -383,7 +382,7 @@ update shared msg model =
                             }
                     in
                     ( newModel
-                    , requestData newModel
+                    , requestData shared newModel
                     )
 
                 Nothing ->
@@ -404,7 +403,7 @@ update shared msg model =
                             }
                     in
                     ( newModel
-                    , requestData newModel
+                    , requestData shared newModel
                     )
 
                 Nothing ->
@@ -432,7 +431,7 @@ update shared msg model =
                     }
             in
             ( newModel
-            , requestData newModel
+            , requestData shared newModel
             )
 
         ToggleShowDownloadFileTypes ->
@@ -490,7 +489,7 @@ view shared model =
                         [ Html.div [ class "box" ]
                             [ viewDownloadDialog model
                             , pagination shared model
-                            , viewSimulations simulations model.selectedSimulationIds model.sortColumn
+                            , viewSimulations shared simulations model.selectedSimulationIds model.sortColumn
                             ]
                         ]
 
@@ -762,8 +761,8 @@ pagination shared model =
         ]
 
 
-viewSimulations : List Simulation -> List Int -> String -> Html Msg
-viewSimulations simulations selectedSimulationIds sortColumn =
+viewSimulations : Shared.Model -> List Simulation -> List Int -> String -> Html Msg
+viewSimulations shared simulations selectedSimulationIds sortColumn =
     let
         up =
             "↓"
@@ -842,7 +841,7 @@ viewSimulations simulations selectedSimulationIds sortColumn =
         rows =
             Html.tbody []
                 (List.map
-                    (viewSimulation selectedSimulationIds)
+                    (viewSimulation shared selectedSimulationIds)
                     simulations
                 )
     in
@@ -851,8 +850,8 @@ viewSimulations simulations selectedSimulationIds sortColumn =
         [ header, rows ]
 
 
-viewSimulation : List Int -> Simulation -> Html Msg
-viewSimulation selectedSimulationIds simulation =
+viewSimulation : Shared.Model -> List Int -> Simulation -> Html Msg
+viewSimulation shared selectedSimulationIds simulation =
     Html.tr []
         [ Html.td []
             [ Html.input
@@ -864,7 +863,7 @@ viewSimulation selectedSimulationIds simulation =
             ]
         , Html.td []
             [ Html.img
-                [ src <| Config.mediaHost ++ "/" ++ simulation.guid ++ "/thumbnail.png"
+                [ src <| shared.mediaHost ++ "/" ++ simulation.guid ++ "/thumbnail.png"
                 , width 200
                 ]
                 []

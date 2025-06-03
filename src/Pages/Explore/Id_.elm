@@ -6,34 +6,31 @@ import Api
 import Chart
 import Chart.Attributes as CA
 import Components.Header
-import Config
-import Decoders exposing (biomoleculeDecoder, contributionDecoder, createdByDecoder, downloadInstanceDecoder, ligandDecoder, paperDecoder, processedFileDecoder, replicateGroupDecoder, simulationDecoder, softwareDecoder, solventDecoder, unvalidatedBiomoleculeDecoder, uploadedFileDecoder)
+import Decoders exposing (downloadInstanceDecoder, simulationDecoder)
 import Effect exposing (Effect)
 import Filesize
 import Html
 import Html.Attributes exposing (align, checked, class, disabled, href, readonly, rows, src, type_)
 import Html.Events exposing (onCheck, onClick)
 import Http
-import Json.Decode as Decode exposing (Decoder, bool, decodeString, float, int, list, nullable, string)
-import Json.Decode.Pipeline exposing (hardcoded, optional, required)
 import Json.Encode as Encode
 import Maybe exposing (..)
 import Page exposing (Page)
 import Regex
-import RemoteData exposing (RemoteData, WebData)
+import RemoteData exposing (WebData)
 import Route exposing (Route)
 import Route.Path
 import Shared
 import Time
-import Types exposing (Biomolecule, Contribution, CreatedBy, DownloadInstance, Ligand, Paper, ProcessedFile, ReplicateGroup, Simulation, SimulationSoftware, Solvent, UnvalidatedBiomolecule, UploadedFile)
+import Types exposing (Biomolecule, Contribution, DownloadInstance, Ligand, ProcessedFile, Simulation, Solvent, UnvalidatedBiomolecule, UploadedFile)
 import View exposing (View)
 
 
 page : Shared.Model -> Route { id : String } -> Page Model Msg
 page shared route =
     Page.new
-        { init = init route
-        , update = update
+        { init = init shared route
+        , update = update shared
         , subscriptions = subscriptions
         , view = view shared
         }
@@ -60,12 +57,12 @@ initialModel =
     }
 
 
-init : Route { id : String } -> () -> ( Model, Effect Msg )
-init route _ =
+init : Shared.Model -> Route { id : String } -> () -> ( Model, Effect Msg )
+init shared route _ =
     ( initialModel
     , Effect.sendCmd <|
         Http.get
-            { url = Config.apiHost ++ "/getSimulations/" ++ route.params.id
+            { url = shared.apiHost ++ "/getSimulations/" ++ route.params.id
             , expect = Http.expectJson SimulationApiResponded simulationDecoder
             }
     )
@@ -85,8 +82,8 @@ type Msg
     | GotDownloadInstanceId (Result Http.Error DownloadInstance)
 
 
-update : Msg -> Model -> ( Model, Effect Msg )
-update msg model =
+update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
+update shared msg model =
     case msg of
         CreateDownloadInstance ->
             let
@@ -110,7 +107,7 @@ update msg model =
             ( model
             , Effect.sendCmd <|
                 Http.post
-                    { url = Config.apiHost ++ "/create_download_instance"
+                    { url = shared.apiHost ++ "/create_download_instance"
                     , body = Http.jsonBody body
                     , expect = Http.expectJson GotDownloadInstanceId downloadInstanceDecoder
                     }
@@ -120,7 +117,7 @@ update msg model =
             ( { model | downloadInstanceId = Just downloadInstance.downloadInstanceId }
               -- TODO: Use downloadInstanceId to initiate download
             , Effect.loadExternalUrl <|
-                Config.apiHost
+                shared.apiHost
                     ++ "/get_download_instance/"
                     ++ String.fromInt downloadInstance.downloadInstanceId
             )
@@ -196,7 +193,7 @@ view shared model =
                     Html.text "Loading"
 
                 RemoteData.Success simulation ->
-                    viewSimulation simulation model.selectedProcessedFileIds
+                    viewSimulation shared simulation model.selectedProcessedFileIds
 
                 RemoteData.Failure err ->
                     Html.text <| "Got error: " ++ Api.toUserFriendlyMessage err
@@ -223,8 +220,8 @@ view shared model =
         }
 
 
-viewSimulation : Simulation -> List Int -> Html.Html Msg
-viewSimulation simulation selectedProcessedFileIds =
+viewSimulation : Shared.Model -> Simulation -> List Int -> Html.Html Msg
+viewSimulation shared simulation selectedProcessedFileIds =
     let
         makeSimulationLink simId =
             let
@@ -783,7 +780,7 @@ viewSimulation simulation selectedProcessedFileIds =
                 [ Html.div [ class "column" ] [ tbl1 ]
                 , Html.div [ class "column" ]
                     [ Html.img
-                        [ src <| Config.mediaHost ++ "/" ++ simulation.guid ++ "/preview.gif" ]
+                        [ src <| shared.mediaHost ++ "/" ++ simulation.guid ++ "/preview.gif" ]
                         []
                     ]
                 ]

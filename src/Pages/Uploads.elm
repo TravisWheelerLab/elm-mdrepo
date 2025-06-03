@@ -3,7 +3,6 @@ module Pages.Uploads exposing (Model, Msg, page)
 import Api
 import Auth
 import Components.Header
-import Config
 import Decoders exposing (uploadTicketsResultDecoder)
 import Effect exposing (Effect, pushRoutePath)
 import Html
@@ -20,7 +19,7 @@ import View exposing (View)
 page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
 page user shared route =
     Page.new
-        { init = init
+        { init = init shared
         , update = update
         , subscriptions = subscriptions
         , view = view shared
@@ -44,12 +43,12 @@ initialModel =
     }
 
 
-init : () -> ( Model, Effect Msg )
-init () =
+init : Shared.Model -> () -> ( Model, Effect Msg )
+init shared () =
     ( initialModel
     , Effect.sendCmd <|
         Http.get
-            { url = Config.apiHost ++ "/getUserDownloadTickets"
+            { url = shared.apiHost ++ "/getUserDownloadTickets"
             , expect = Http.expectJson GotUploadTickets uploadTicketsResultDecoder
             }
     )

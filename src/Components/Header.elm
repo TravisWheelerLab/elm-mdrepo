@@ -77,7 +77,8 @@ view props =
                 [ Html.div
                     [ class "navbar-brand" ]
                     [ Html.a
-                        [ Route.Path.href Route.Path.Home_ ]
+                        --[ Route.Path.href Route.Path.Home_ ]
+                        [ href "/" ]
                         [ Html.img [ src "/mdrepo.png", width 200 ] [] ]
                     ]
                 , Html.div [ class "navbar-menu" ]

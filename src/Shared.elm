@@ -12,7 +12,6 @@ module Shared exposing
 
 -}
 
-import Config
 import Decoders exposing (userDecoder)
 import Effect exposing (Effect)
 import Http
@@ -28,26 +27,26 @@ import Shared.Msg
 
 
 type alias Flags =
-    { apiHost : Maybe String
-    , mediaHost : Maybe String
+    { apiHost : String
+    , mediaHost : String
     , csrfToken : Maybe String
-    , sessionId : Maybe String
     }
 
 
+defaultApiHost =
+    "http://localhost"
 
---decoder : Json.Decode.Decoder Flags
---decoder =
--- Json.Decode.succeed {}
+
+defaultMediaHost =
+    "https://assets.mdrepo.org"
 
 
 decoder : Json.Decode.Decoder Flags
 decoder =
     Json.Decode.succeed Flags
-        |> optional "API_HOST" (nullable string) Nothing
-        |> optional "MEDIA_HOST" (nullable string) Nothing
+        |> optional "API_HOST" string defaultApiHost
+        |> optional "MEDIA_HOST" string defaultMediaHost
         |> optional "CSRF_TOKEN" (nullable string) Nothing
-        |> optional "SESSION_ID" (nullable string) Nothing
 
 
 
@@ -64,27 +63,31 @@ init flagsResult route =
         model =
             case flagsResult of
                 Ok flags ->
-                    { apiHost = flags.apiHost
+                    { apiHost = flags.apiHost ++ "/api/v1"
+                    , loginUrl = flags.apiHost ++ "/api/accounts/orcid/login/"
+                    , logoutUrl = flags.apiHost ++ "/api/accounts/logout/"
                     , mediaHost = flags.mediaHost
                     , csrfToken = flags.csrfToken
-                    , sessionId = flags.sessionId
                     , user = Nothing
                     }
 
                 _ ->
-                    { apiHost = Nothing
-                    , mediaHost = Nothing
+                    { apiHost = defaultApiHost ++ "/api/v1"
+                    , loginUrl = defaultApiHost ++ "/api/accounts/orcid/login/"
+                    , logoutUrl = defaultApiHost ++ "/api/accounts/logout/"
+                    , mediaHost = defaultMediaHost
                     , csrfToken = Nothing
-                    , sessionId = Nothing
                     , user = Nothing
                     }
     in
     ( model
-      --, Effect.none
     , Effect.sendCmd <|
         Http.get
-            { url = Config.apiHost ++ "/getProfile"
-            , expect = Http.expectJson Shared.Msg.GotUser (Json.Decode.list userDecoder)
+            { url = model.apiHost ++ "/getProfile"
+            , expect =
+                Http.expectJson
+                    Shared.Msg.GotUser
+                    (Json.Decode.list userDecoder)
             }
     )
 

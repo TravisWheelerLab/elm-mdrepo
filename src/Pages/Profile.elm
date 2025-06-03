@@ -1,18 +1,11 @@
 module Pages.Profile exposing (Model, Msg, page)
 
---import Shared.Msg
---import Auth
-
-import Api
 import Auth
 import Components.Header
-import Config
 import Decoders exposing (userDecoder)
 import Effect exposing (Effect, loadExternalUrl, none)
 import Html
 import Html.Attributes exposing (class)
-import Http
-import Json.Decode
 import Maybe
 import Page exposing (Page)
 import Route exposing (Route)

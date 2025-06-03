@@ -1,6 +1,5 @@
 module Pages.Logout exposing (Model, Msg, page)
 
-import Config
 import Effect exposing (Effect, loadExternalUrl)
 import Html
 import Page exposing (Page)
@@ -12,7 +11,7 @@ import View exposing (View)
 page : Shared.Model -> Route () -> Page Model Msg
 page shared route =
     Page.new
-        { init = init
+        { init = init shared
         , update = update
         , subscriptions = subscriptions
         , view = view
@@ -27,10 +26,10 @@ type alias Model =
     {}
 
 
-init : () -> ( Model, Effect Msg )
-init () =
+init : Shared.Model -> () -> ( Model, Effect Msg )
+init shared () =
     ( {}
-    , loadExternalUrl Config.logoutUrl
+    , loadExternalUrl shared.logoutUrl
     )
 
 
