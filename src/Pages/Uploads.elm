@@ -6,12 +6,13 @@ import Config
 import Decoders exposing (uploadTicketsResultDecoder)
 import Effect exposing (Effect, pushRoutePath)
 import Html
+import Html.Attributes exposing (class)
 import Http
 import Page exposing (Page)
 import Route exposing (Route)
 import Route.Path
 import Shared
-import Types exposing (UploadTicketsResult)
+import Types exposing (UploadTicket, UploadTicketSimulation, UploadTicketsResult)
 import View exposing (View)
 
 
@@ -94,11 +95,53 @@ subscriptions model =
 view : Shared.Model -> Model -> View Msg
 view shared model =
     let
-        _ =
-            Debug.log "model" model
+        table =
+            case model.uploadTickets of
+                Just uploadTickets ->
+                    uploadTicketsTable uploadTickets.results
+
+                _ ->
+                    Html.text "Unable to get data"
     in
     Components.Header.view
-        { title = "Pages.Uploads"
-        , body = [ Html.text "/uploads" ]
+        { title = "MDRepo - Upload Logs"
+        , body = [ Html.div [ class "container" ] [ table ] ]
         , shared = shared
         }
+
+
+simLink : UploadTicketSimulation -> Html.Html Msg
+simLink sim =
+    Html.a
+        [ Route.Path.href <| Route.Path.Explore_Id_ { id = sim.mdRepoId } ]
+        [ Html.text sim.slug ]
+
+
+uploadTicketsTable : List UploadTicket -> Html.Html Msg
+uploadTicketsTable uploadTickets =
+    let
+        mkRow ticket =
+            Html.tr []
+                [ Html.td [] [ Html.text ticket.status ]
+                , Html.td [] [ Html.text ticket.createdAt ]
+                , Html.td [] (List.map simLink ticket.simulations)
+                , Html.td [] [ Html.text "files" ]
+                ]
+    in
+    case List.length uploadTickets of
+        0 ->
+            Html.text "No tickets"
+
+        _ ->
+            Html.table
+                [ class "table" ]
+                [ Html.thead []
+                    [ Html.tr []
+                        [ Html.th [] [ Html.text "Status" ]
+                        , Html.th [] [ Html.text "Created On" ]
+                        , Html.th [] [ Html.text "Simulation(s)" ]
+                        , Html.th [] [ Html.text "Files" ]
+                        ]
+                    ]
+                , Html.tbody [] (List.map mkRow uploadTickets)
+                ]
