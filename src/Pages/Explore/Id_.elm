@@ -7,13 +7,13 @@ import Chart
 import Chart.Attributes as CA
 import Components.Header
 import Config
+import Decoders exposing (biomoleculeDecoder, contributionDecoder, createdByDecoder, downloadInstanceDecoder, ligandDecoder, paperDecoder, processedFileDecoder, replicateGroupDecoder, simulationDecoder, softwareDecoder, solventDecoder, unvalidatedBiomoleculeDecoder, uploadedFileDecoder)
 import Effect exposing (Effect)
 import Filesize
 import Html
 import Html.Attributes exposing (align, checked, class, disabled, href, readonly, rows, src, type_)
 import Html.Events exposing (onCheck, onClick)
 import Http
-import Iso8601
 import Json.Decode as Decode exposing (Decoder, bool, decodeString, float, int, list, nullable, string)
 import Json.Decode.Pipeline exposing (hardcoded, optional, required)
 import Json.Encode as Encode
@@ -25,6 +25,7 @@ import Route exposing (Route)
 import Route.Path
 import Shared
 import Time
+import Types exposing (Biomolecule, Contribution, CreatedBy, DownloadInstance, Ligand, Paper, ProcessedFile, ReplicateGroup, Simulation, SimulationSoftware, Solvent, UnvalidatedBiomolecule, UploadedFile)
 import View exposing (View)
 
 
@@ -42,143 +43,12 @@ page shared route =
 -- INIT
 
 
-type alias Simulation =
-    { id : Int
-    , mdRepoId : String
-    , guid : String
-    , slug : String
-    , description : Maybe String
-    , externalLink : Maybe String
-    , createdBy : CreatedBy
-    , creationDate : Time.Posix
-    , replicate : Maybe Int
-    , totalReplicates : Maybe Int
-    , samplingFrequency : Maybe Float
-    , duration : Maybe Float
-    , integrationTimestepFs : Float
-    , temperature : Int
-    , fastaSequence : Maybe String
-    , rmsdValues : List Float
-    , rmsfValues : List Float
-    , software : SimulationSoftware
-    , biomolecules : List Biomolecule
-    , unvalidatedBiomolecules : List UnvalidatedBiomolecule
-    , ligands : List Ligand
-    , contributions : List Contribution
-    , solvents : List Solvent
-    , processedFiles : List ProcessedFile
-    , uploadedFiles : List UploadedFile
-    , papers : List Paper
-    , replicateGroup : ReplicateGroup
-    }
-
-
-type alias SimulationSoftware =
-    { name : String
-    , version : Maybe String
-    }
-
-
-type alias Solvent =
-    { name : String
-    , concentration : Float
-    , concentrationUnits : String
-    }
-
-
-type alias Contribution =
-    { name : String
-    , orcid : Maybe String
-    , email : Maybe String
-    , institution : Maybe String
-    }
-
-
-type alias Biomolecule =
-    { name : String
-    , primaryMoleculeIdType : String
-    , aminoLength : Int
-    , sequence : Maybe String
-    , uniprotId : Maybe String
-    , pdbId : Maybe String
-    }
-
-
-type alias UnvalidatedBiomolecule =
-    { moleculeId : String
-    , moleculeIdType : Maybe String
-    }
-
-
-type alias Ligand =
-    { name : String
-    , smilesString : Maybe String
-    }
-
-
-type alias CreatedBy =
-    { firstName : Maybe String
-    , lastName : Maybe String
-    , fullName : Maybe String
-    , email : Maybe String
-    , institution : Maybe String
-    , isSuperuser : Maybe Bool
-    , isStaff : Maybe Bool
-    , orcid : Maybe String
-    , canContribute : Maybe Bool
-    }
-
-
-type alias ProcessedFile =
-    { id : Int
-    , isPrimary : Bool
-    , fileType : String
-    , localFileName : String
-    , localFilePath : String
-    , description : Maybe String
-    , fileSizeBytes : Maybe Int
-    , isPublic : Bool
-    }
-
-
-type alias UploadedFile =
-    { id : Int
-    , primary : Bool
-    , filename : String
-    , fileType : String
-    , description : Maybe String
-    , fileSizeBytes : Maybe Int
-    }
-
-
-type alias Paper =
-    { title : String
-    , authors : String
-    , journal : String
-    , volume : Int
-    , number : Maybe String
-    , year : Int
-    , pages : Maybe String
-    , doi : String
-    }
-
-
-type alias ReplicateGroup =
-    { psfHash : Maybe String
-    , simulationSet : List String
-    }
-
-
 type alias Model =
     { simulation : WebData Simulation
     , selectedProcessedFileIds : List Int
     , downloadInstanceId : Maybe Int
     , error : Maybe String
     }
-
-
-type alias DownloadInstance =
-    { downloadInstanceId : Int }
 
 
 initialModel : Model
@@ -199,159 +69,6 @@ init route _ =
             , expect = Http.expectJson SimulationApiResponded simulationDecoder
             }
     )
-
-
-
-{- decoder : Json.Decode.Decoder Simulation
-   decoder =
-       Json.Decode.map Simulation
-           (Json.Decode.field "id" Json.Decode.int)
--}
-
-
-simulationDecoder : Decoder Simulation
-simulationDecoder =
-    Decode.succeed Simulation
-        |> required "id" int
-        |> required "md_repo_id" string
-        |> required "guid" string
-        |> required "slug" string
-        |> required "description" (nullable string)
-        |> required "external_link" (nullable string)
-        |> required "created_by" createdByDecoder
-        |> required "creation_date" Iso8601.decoder
-        |> required "replicate" (nullable int)
-        |> required "total_replicates" (nullable int)
-        |> optional "sampling_frequency" (nullable float) Nothing
-        |> optional "duration" (nullable float) Nothing
-        |> required "integration_timestep_fs" float
-        |> required "temperature" int
-        |> required "fasta_sequence" (nullable string)
-        |> optional "rmsd_values" (list float) []
-        |> optional "rmsf_values" (list float) []
-        |> required "software" softwareDecoder
-        |> required "biomolecules" (list biomoleculeDecoder)
-        |> required "unvalidated_biomolecules" (list unvalidatedBiomoleculeDecoder)
-        |> required "ligands" (list ligandDecoder)
-        |> required "contributions" (list contributionDecoder)
-        |> required "solvents" (list solventDecoder)
-        |> required "processed_files" (list processedFileDecoder)
-        |> required "uploaded_files" (list uploadedFileDecoder)
-        |> required "papers" (list paperDecoder)
-        |> required "replicate_group" replicateGroupDecoder
-
-
-paperDecoder : Decoder Paper
-paperDecoder =
-    Decode.succeed Paper
-        |> required "title" string
-        |> required "authors" string
-        |> required "journal" string
-        |> required "volume" int
-        |> required "number" (nullable string)
-        |> required "year" int
-        |> required "pages" (nullable string)
-        |> required "doi" string
-
-
-createdByDecoder : Decoder CreatedBy
-createdByDecoder =
-    Decode.succeed CreatedBy
-        |> optional "first_name" (nullable string) Nothing
-        |> optional "last_name" (nullable string) Nothing
-        |> optional "full_name" (nullable string) Nothing
-        |> optional "email" (nullable string) Nothing
-        |> optional "institution" (nullable string) Nothing
-        |> optional "is_superuser" (nullable bool) Nothing
-        |> optional "is_staff" (nullable bool) Nothing
-        |> optional "orcid" (nullable string) Nothing
-        |> optional "can_contribute" (nullable bool) Nothing
-
-
-contributionDecoder : Decoder Contribution
-contributionDecoder =
-    Decode.succeed Contribution
-        |> required "name" string
-        |> required "orcid" (nullable string)
-        |> required "email" (nullable string)
-        |> required "institution" (nullable string)
-
-
-processedFileDecoder : Decoder ProcessedFile
-processedFileDecoder =
-    Decode.succeed ProcessedFile
-        |> required "id" int
-        |> required "is_primary" bool
-        |> required "file_type" string
-        |> required "local_filename" string
-        |> required "local_file_path" string
-        |> required "description" (nullable string)
-        |> required "file_size_bytes" (nullable int)
-        |> required "public" bool
-
-
-uploadedFileDecoder : Decoder UploadedFile
-uploadedFileDecoder =
-    Decode.succeed UploadedFile
-        |> required "id" int
-        |> required "primary" bool
-        |> required "filename" string
-        |> required "file_type" string
-        |> required "description" (nullable string)
-        |> required "file_size_bytes" (nullable int)
-
-
-solventDecoder : Decoder Solvent
-solventDecoder =
-    Decode.succeed Solvent
-        |> required "name" string
-        |> required "concentration" float
-        |> required "concentration_units" string
-
-
-softwareDecoder : Decoder SimulationSoftware
-softwareDecoder =
-    Decode.succeed SimulationSoftware
-        |> required "name" string
-        |> required "version" (nullable string)
-
-
-ligandDecoder : Decoder Ligand
-ligandDecoder =
-    Decode.succeed Ligand
-        |> required "name" string
-        |> required "smiles_string" (nullable string)
-
-
-replicateGroupDecoder : Decoder ReplicateGroup
-replicateGroupDecoder =
-    Decode.succeed ReplicateGroup
-        |> optional "psf_hash" (nullable string) Nothing
-        |> optional "simulation_set" (list string) []
-
-
-biomoleculeDecoder : Decoder Biomolecule
-biomoleculeDecoder =
-    Decode.succeed Biomolecule
-        |> required "name" string
-        |> required "primary_molecule_id_type" string
-        |> required "amino_length" int
-        |> required "sequence" (nullable string)
-        |> required "uniprot_id" (nullable string)
-        |> required "pdb_id" (nullable string)
-
-
-unvalidatedBiomoleculeDecoder : Decoder UnvalidatedBiomolecule
-unvalidatedBiomoleculeDecoder =
-    Decode.succeed UnvalidatedBiomolecule
-        |> required "molecule_id" string
-        |> required "molecule_id_type" (nullable string)
-
-
-downloadInstanceDecoder : Decoder DownloadInstance
-downloadInstanceDecoder =
-    Decode.succeed DownloadInstance
-        |> required "download_instance_id" int
 
 
 

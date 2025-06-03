@@ -40,6 +40,12 @@ view props =
                                 , Html.div
                                     [ class "navbar-item" ]
                                     [ Html.a
+                                        [ Route.Path.href Route.Path.Downloads ]
+                                        [ Html.text "Download Tokens" ]
+                                    ]
+                                , Html.div
+                                    [ class "navbar-item" ]
+                                    [ Html.a
                                         [ Route.Path.href Route.Path.Metadata ]
                                         [ Html.text "Create Metadata" ]
                                     ]
