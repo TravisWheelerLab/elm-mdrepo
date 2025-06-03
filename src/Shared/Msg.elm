@@ -2,6 +2,7 @@ module Shared.Msg exposing (Msg(..))
 
 {-| -}
 
+import Http
 import Types exposing (User)
 
 
@@ -16,3 +17,4 @@ type Msg
     = NoOp
     | Login (Maybe User)
     | Logout
+    | GotUser (Result Http.Error (List User))

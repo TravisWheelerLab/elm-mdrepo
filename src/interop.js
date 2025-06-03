@@ -1,12 +1,12 @@
 function getCookieByName(name) {
-    const cookies = document.cookie.split(';');
-    for (let cookie of cookies) {
-        cookie = cookie.trim();
-        if (cookie.startsWith(name + '=')) {
-            return cookie.substring(name.length + 1);
-        }
+  const cookies = document.cookie.split(";");
+  for (let cookie of cookies) {
+    cookie = cookie.trim();
+    if (cookie.startsWith(name + "=")) {
+      return cookie.substring(name.length + 1);
     }
-    return null;
+  }
+  return null;
 }
 
 // This is called BEFORE your Elm app starts up
@@ -23,4 +23,17 @@ export const flags = ({ env }) => {
 // Here you can work with `app.ports` to send messages
 // to your Elm application, or subscribe to incoming
 // messages from Elm
-export const onReady = ({ app, env }) => {};
+
+export const onReady = ({ env, app }) => {
+  // Called after our Elm application starts
+  if (app.ports && app.ports.copyToClipboardPort) {
+    app.ports.copyToClipboardPort.subscribe((text) => {
+      const type = "text/plain";
+      const clipboardItemData = {
+        [type]: text,
+      };
+      const clipboardItem = new ClipboardItem(clipboardItemData);
+      navigator.clipboard.write([clipboardItem]);
+    });
+  }
+};

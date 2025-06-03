@@ -1,4 +1,4 @@
-module Effect exposing
+port module Effect exposing
     ( Effect
     , none, batch
     , sendCmd, sendMsg
@@ -6,7 +6,7 @@ module Effect exposing
     , pushRoutePath, replaceRoutePath
     , loadExternalUrl, back
     , map, toCmd
-    , login, logout
+    , copyToClipboard, login, logout
     )
 
 {-|
@@ -26,6 +26,7 @@ module Effect exposing
 
 import Browser.Navigation
 import Dict exposing (Dict)
+import Html exposing (text)
 import Route exposing (Route)
 import Route.Path
 import Shared.Model
@@ -45,6 +46,7 @@ type Effect msg
     | ReplaceUrl String
     | LoadExternalUrl String
     | Back
+    | CopyToClipboard String
       -- SHARED
     | SendSharedMsg Shared.Msg.Msg
 
@@ -156,6 +158,9 @@ map fn effect =
         Batch list ->
             Batch (List.map (map fn) list)
 
+        CopyToClipboard text ->
+            CopyToClipboard text
+
         SendCmd cmd ->
             SendCmd (Cmd.map fn cmd)
 
@@ -195,6 +200,9 @@ toCmd options effect =
         Batch list ->
             Cmd.batch (List.map (toCmd options) list)
 
+        CopyToClipboard text ->
+            copyToClipboardPort text
+
         SendCmd cmd ->
             cmd
 
@@ -223,3 +231,11 @@ login user =
 logout : Effect msg
 logout =
     SendSharedMsg Shared.Msg.Logout
+
+
+copyToClipboard : String -> Effect msg
+copyToClipboard text =
+    CopyToClipboard text
+
+
+port copyToClipboardPort : String -> Cmd msg

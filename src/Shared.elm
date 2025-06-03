@@ -12,13 +12,13 @@ module Shared exposing
 
 -}
 
-import Dict
+import Config
+import Decoders exposing (userDecoder)
 import Effect exposing (Effect)
+import Http
 import Json.Decode exposing (Decoder, nullable, string)
 import Json.Decode.Pipeline exposing (optional)
-import Regex
 import Route exposing (Route)
-import Route.Path
 import Shared.Model
 import Shared.Msg
 
@@ -80,7 +80,12 @@ init flagsResult route =
                     }
     in
     ( model
-    , Effect.none
+      --, Effect.none
+    , Effect.sendCmd <|
+        Http.get
+            { url = Config.apiHost ++ "/getProfile"
+            , expect = Http.expectJson Shared.Msg.GotUser (Json.Decode.list userDecoder)
+            }
     )
 
 
@@ -103,6 +108,25 @@ update route msg model =
 
         Shared.Msg.NoOp ->
             ( model
+            , Effect.none
+            )
+
+        Shared.Msg.GotUser (Ok users) ->
+            let
+                user =
+                    case List.length users of
+                        1 ->
+                            List.head users
+
+                        _ ->
+                            Nothing
+            in
+            ( { model | user = user }
+            , Effect.none
+            )
+
+        Shared.Msg.GotUser (Err _) ->
+            ( { model | user = Nothing }
             , Effect.none
             )
 

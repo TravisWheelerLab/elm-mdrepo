@@ -2,6 +2,7 @@ module Pages.Explore exposing (Model, Msg, page)
 
 import Api
 import Char exposing (isAlphaNum)
+import Chart.Attributes exposing (onTopOrBottom)
 import Components.Header
 import Config
 import Effect exposing (Effect)
@@ -26,7 +27,7 @@ page : Shared.Model -> Route () -> Page Model Msg
 page shared route =
     Page.new
         { init = init
-        , update = update
+        , update = update shared
         , subscriptions = subscriptions
         , view = view shared
         }
@@ -51,6 +52,7 @@ type alias Model =
     , downloadFileTypes : List String
     , showDownloadFileTypes : Bool
     , downloadToken : Maybe String
+    , downloadTokenError : Maybe String
     , sortColumn : String
     }
 
@@ -97,6 +99,11 @@ type alias Software =
     }
 
 
+type alias DownloadToken =
+    { token : String
+    }
+
+
 initialModel : Model
 initialModel =
     { recordCount = Nothing
@@ -113,6 +120,7 @@ initialModel =
     , downloadFileTypes = []
     , showDownloadFileTypes = False
     , downloadToken = Nothing
+    , downloadTokenError = Nothing
     , sortColumn = "description"
     }
 
@@ -178,6 +186,12 @@ decodeRequest =
         |> required "results" (Decode.list simulationDecoder)
 
 
+downloadTokenDecoder : Decoder DownloadToken
+downloadTokenDecoder =
+    Decode.succeed DownloadToken
+        |> required "token" string
+
+
 simulationDecoder : Decoder Simulation
 simulationDecoder =
     Decode.succeed Simulation
@@ -216,22 +230,31 @@ ligandDecoder =
         |> required "smiles_string" string
 
 
+downloadTokenRequestEncoder : Model -> Value
+downloadTokenRequestEncoder model =
+    let
+        simulationIds =
+            List.map String.fromInt model.selectedSimulationIds
 
-{- downloadTokenRequestEncoder : DownloadTokenRequest -> Value
-   downloadTokenRequestEncoder request =
-       Encode.object
-           [ ( "simulation_ids", Encode.list (List.map Encode.int request.simulationIds) )
-           , ( "download_all_file_types", Encode.bool (List.isEmpty request.selectedFileTypes) )
-           , ( "selected_file_types", Encode.list (List.map Encode.string request.selectedFileTypes) )
-           ]
--}
+        selectedFileTypes =
+            model.downloadFileTypes
+    in
+    Encode.object
+        [ ( "simulation_ids", Encode.list Encode.string simulationIds )
+        , ( "download_all_file_types", Encode.bool (List.isEmpty selectedFileTypes) )
+        , ( "selected_file_types", Encode.list Encode.string selectedFileTypes )
+        ]
+
+
+
 -- UPDATE
 
 
 type Msg
     = CloseDownloadDialog
-      -- | GetDownloadToken
-      -- | GotDownloadToken (Result Http.Error String)
+    | CopyDownloadTokenToClipboard
+    | GetDownloadToken
+    | GotDownloadToken (Result Http.Error DownloadToken)
     | SimulationApiResponded (Result Http.Error ExploreRequest)
     | ShowDownloadDialog
     | SelectAllDownloadFileTypes
@@ -245,27 +268,63 @@ type Msg
     | ToggleShowDownloadFileTypes
 
 
-update : Msg -> Model -> ( Model, Effect Msg )
-update msg model =
+update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
+update shared msg model =
     case msg of
         CloseDownloadDialog ->
             ( { model | showDownloadDialog = False }, Effect.none )
 
-        {- GotDownloadToken ->
-              let
-                  downloadToken =
-                      getDownloadToken model
-              in
-              ( { model | downloadToken = Just downloadToken }, Effect.none )
+        CopyDownloadTokenToClipboard ->
+            let
+                cmd =
+                    case model.downloadToken of
+                        Just token ->
+                            Effect.copyToClipboard token
 
-           getDownloadToken : Model -> String
-           getDownloadToken model =
-               Http.post
-               { url = Config.apiHost ++ "/downloads"
-               , body = Http.emptyBody
-               , expect = Http.expectJson GotDownloadToken string
-               }
-        -}
+                        _ ->
+                            Effect.none
+            in
+            ( model, cmd )
+
+        GetDownloadToken ->
+            let
+                headers =
+                    case shared.csrfToken of
+                        Just token ->
+                            [ Http.header "X-CSRFTOKEN" token ]
+
+                        _ ->
+                            []
+            in
+            ( model
+            , Effect.sendCmd <|
+                Http.request
+                    { method = "POST"
+                    , headers = headers
+                    , url = Config.apiHost ++ "/downloads"
+                    , body = Http.jsonBody <| downloadTokenRequestEncoder model
+                    , expect = Http.expectJson GotDownloadToken downloadTokenDecoder
+                    , timeout = Nothing
+                    , tracker = Nothing
+                    }
+            )
+
+        GotDownloadToken (Ok downloadToken) ->
+            ( { model
+                | downloadToken = Just downloadToken.token
+                , downloadTokenError = Nothing
+              }
+            , Effect.none
+            )
+
+        GotDownloadToken (Err err) ->
+            ( { model
+                | downloadToken = Nothing
+                , downloadTokenError = Just (Api.toUserFriendlyMessage err)
+              }
+            , Effect.none
+            )
+
         SetDownloadFileType fileType isChecked ->
             let
                 newFileTypes =
@@ -493,6 +552,27 @@ viewDownloadDialog model =
 
             else
                 Html.div [] []
+
+        downloadTokenView =
+            case model.downloadToken of
+                Just token ->
+                    Html.div []
+                        [ Html.text <| "Download token = " ++ token
+                        , Html.button
+                            [ class "button", onClick CopyDownloadTokenToClipboard ]
+                            [ Html.text "Copy to clipboard" ]
+                        ]
+
+                _ ->
+                    Html.div [] []
+
+        downloadTokenErrorView =
+            case model.downloadTokenError of
+                Just err ->
+                    Html.div [] [ Html.text <| "Error: " ++ err ]
+
+                _ ->
+                    Html.div [] []
     in
     if model.showDownloadDialog then
         Html.div [ class "modal is-active" ]
@@ -522,9 +602,6 @@ viewDownloadDialog model =
                                 [ type_ "radio"
                                 , name "download_file_type"
                                 , onClick SelectAllDownloadFileTypes
-
-                                --, checked (List.isEmpty model.downloadFileTypes)
-                                --, onClick SetDownloadAllFileTypes
                                 ]
                                 []
                             , Html.text "Download all file types"
@@ -540,13 +617,14 @@ viewDownloadDialog model =
                             ]
                         ]
                     , fileTypesCheckboxes
+                    , downloadTokenView
+                    , downloadTokenErrorView
                     ]
                 , Html.footer [ class "modal-card-foot" ]
                     [ Html.div [ class "buttons" ]
                         [ Html.button
                             [ class "button is-success"
-
-                            -- , onClick GetDownloadToken
+                            , onClick GetDownloadToken
                             ]
                             [ Html.text "Get Token" ]
                         , Html.button

@@ -21,12 +21,6 @@ getSimulations :
 getSimulations options =
     Http.get
         { url = Config.apiHost ++ "/getSimulations"
-
-        {- , expect =
-           Http.expectStringResponse
-               options.onResponse
-               handleHttpResponse
-        -}
         , expect = Http.expectJson options.onResponse decoder
         }
 
