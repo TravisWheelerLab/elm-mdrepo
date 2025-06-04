@@ -6,7 +6,7 @@ port module Effect exposing
     , pushRoutePath, replaceRoutePath
     , loadExternalUrl, back
     , map, toCmd
-    , copyToClipboard, login, logout
+    , copyToClipboard, login, logout, setErrorMessage
     )
 
 {-|
@@ -67,6 +67,11 @@ none =
 batch : List (Effect msg) -> Effect msg
 batch =
     Batch
+
+
+setErrorMessage : Maybe String -> Effect msg
+setErrorMessage newMessage =
+    SendSharedMsg (Shared.Msg.SetErrorMessage newMessage)
 
 
 {-| Send a normal `Cmd msg` as an effect, something like `Http.get` or `Random.generate`.
