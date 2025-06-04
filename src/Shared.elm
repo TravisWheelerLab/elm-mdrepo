@@ -69,6 +69,7 @@ init flagsResult route =
                     , mediaHost = flags.mediaHost
                     , csrfToken = flags.csrfToken
                     , user = Nothing
+                    , errorMessage = Nothing
                     }
 
                 _ ->
@@ -78,6 +79,7 @@ init flagsResult route =
                     , mediaHost = defaultMediaHost
                     , csrfToken = Nothing
                     , user = Nothing
+                    , errorMessage = Nothing
                     }
     in
     ( model
@@ -103,6 +105,9 @@ type alias Msg =
 update : Route () -> Msg -> Model -> ( Model, Effect Msg )
 update route msg model =
     case msg of
+        Shared.Msg.SetErrorMessage newMessage ->
+            ( { model | errorMessage = newMessage }, Effect.none )
+
         Shared.Msg.Login user ->
             ( { model | user = user }, Effect.none )
 
