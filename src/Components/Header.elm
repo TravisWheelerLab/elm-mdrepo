@@ -73,6 +73,12 @@ view props =
                                 , Html.div
                                     [ class "navbar-item" ]
                                     [ Html.a
+                                        [ Route.Path.href Route.Path.MySimulations ]
+                                        [ Html.text "My Simulations" ]
+                                    ]
+                                , Html.div
+                                    [ class "navbar-item" ]
+                                    [ Html.a
                                         [ Route.Path.href Route.Path.Metadata ]
                                         [ Html.text "Create Metadata" ]
                                     ]
