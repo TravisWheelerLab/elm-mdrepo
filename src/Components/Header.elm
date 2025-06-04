@@ -14,6 +14,21 @@ view :
     }
     -> View msg
 view props =
+    let
+        errorMessage =
+            case props.shared.errorMessage of
+                Just error ->
+                    Html.section
+                        [ class "hero is-warning is-small" ]
+                        [ Html.div [ class "hero-body" ]
+                            [ Html.p [ class "title" ] [ Html.text "Error" ]
+                            , Html.p [ class "subtitle" ] [ Html.text error ]
+                            ]
+                        ]
+
+                _ ->
+                    Html.div [] []
+    in
     { title = props.title
     , body =
         let
@@ -102,6 +117,7 @@ view props =
                     ]
                 ]
             ]
+        , errorMessage
         , Html.div [ class "page" ] props.body
         ]
     }
