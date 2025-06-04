@@ -5,14 +5,13 @@ import Components.Header
 import Decoders exposing (userDecoder)
 import Effect exposing (Effect)
 import Html
-import Html.Attributes exposing (checked, class, type_, value)
-import Html.Events exposing (onCheck, onClick, onInput)
+import Html.Attributes exposing (class)
 import Http
 import Json.Decode as Decode exposing (Decoder, bool, float, int, list, nullable, string)
 import Json.Decode.Pipeline exposing (optional, required)
-import Json.Encode as Encode exposing (Value)
 import Page exposing (Page)
 import Route exposing (Route)
+import Route.Path
 import Shared
 import Types exposing (User)
 import View exposing (View)
@@ -33,57 +32,59 @@ page shared route =
 
 
 type alias Model =
-    { userUploadTicketsResult : Maybe UserUploadTicketsResult
-    , showDialog : Bool
-    , numberUploads : Int
-    , uploadToken : Maybe UploadToken
-    , isAdminToken : Bool
-    }
+    { uploadInstancesResult : Maybe UploadInstancesResult }
 
 
 initialModel : Model
 initialModel =
-    { userUploadTicketsResult = Nothing
-    , showDialog = False
-    , numberUploads = 1
-    , uploadToken = Nothing
-    , isAdminToken = False
-    }
+    { uploadInstancesResult = Nothing }
 
 
-type alias UploadToken =
-    { token : String
-    , orcid : String
-    }
-
-
-type alias UserUploadTicketsResult =
+type alias UploadInstancesResult =
     { count : Int
     , next : Maybe String
     , previous : Maybe String
-    , results : List UserUploadTicket
+    , results : List UploadInstance
     }
 
 
-type alias UserUploadTicket =
+uploadInstancesResultDecoder : Decoder UploadInstancesResult
+uploadInstancesResultDecoder =
+    Decode.succeed UploadInstancesResult
+        |> required "count" int
+        |> required "next" (nullable string)
+        |> required "previous" (nullable string)
+        |> required "results" (Decode.list uploadInstanceDecoder)
+
+
+type alias UploadInstance =
     { id : Int
-    , token : String
-    , nSubmissions : Int
-    , createdBy : Int
-    , orcid : String
-    , createdAt : String
-    , status : String
-    , simulations : List UserUploadSimulation
-    , ticketType : String
-    , uploadInstances : List UserUploadInstance
-    , statusMessages : List UserUploadStatusMessage
-    , successful : Bool
+    , user : Maybe User
+    , ticket : Int
+    , createdOn : String
+    , simulation : Simulation
+    , statusMessages : List StatusMessage
+    , successful : Maybe Bool
     , leadContributorOrcid : String
-    , filenames : String
+    , filenames : Maybe String
     }
 
 
-type alias UserUploadStatusMessage =
+uploadInstanceDecoder : Decoder UploadInstance
+uploadInstanceDecoder =
+    Decode.succeed UploadInstance
+        |> required "id" int
+        |> optional "user" (nullable userDecoder) Nothing
+        |> required "ticket" int
+        |> required "created_on" string
+        |> required "simulation" simulationDecoder
+        |> required "status_messages" (list statusMessageDecoder)
+        |> optional "successful" (nullable bool) Nothing
+        |> required "lead_contributor_orcid" string
+        |> optional "filenames" (nullable string) Nothing
+
+
+type alias StatusMessage =
     { timestamp : String
     , message : String
     , isError : Bool
@@ -91,16 +92,16 @@ type alias UserUploadStatusMessage =
     }
 
 
-type alias UserUploadInstance =
-    { id : Int
-    , user : User
-    , ticket : Int
-    , createdOn : String
-    , simulation : UserUploadSimulation
-    }
+statusMessageDecoder : Decoder StatusMessage
+statusMessageDecoder =
+    Decode.succeed StatusMessage
+        |> required "timestamp" string
+        |> required "message" string
+        |> required "is_error" bool
+        |> required "is_warning" bool
 
 
-type alias UserUploadSimulation =
+type alias Simulation =
     { mdRepoId : String
     , guid : String
     , description : Maybe String
@@ -112,66 +113,9 @@ type alias UserUploadSimulation =
     }
 
 
-type alias UploadedFile =
-    { id : Int
-    , isPrimary : Bool
-    , fileName : String
-    , fileType : String
-    , description : String
-    , fileSizeBytes : String
-    }
-
-
-decodeRequest : Decoder UserUploadTicketsResult
-decodeRequest =
-    Decode.succeed UserUploadTicketsResult
-        |> required "count" int
-        |> required "next" (nullable string)
-        |> required "previous" (nullable string)
-        |> required "results" (Decode.list userUploadTicketDecoder)
-
-
-userUploadTicketDecoder : Decoder UserUploadTicket
-userUploadTicketDecoder =
-    Decode.succeed UserUploadTicket
-        |> required "id" int
-        |> required "token" string
-        |> required "n_submissions" int
-        |> required "created_by" int
-        |> required "orcid" string
-        |> required "created_at" string
-        |> required "status" string
-        |> required "simulations" (list userUploadSimulationDecoder)
-        |> required "ticket_type" string
-        |> required "upload_instances" (list userUploadInstanceDecoder)
-        |> required "status_messages" (list userUploadStatusMessageDecoder)
-        |> required "successful" bool
-        |> required "lead_contributor_orcid" string
-        |> required "filenames" string
-
-
-userUploadStatusMessageDecoder : Decoder UserUploadStatusMessage
-userUploadStatusMessageDecoder =
-    Decode.succeed UserUploadStatusMessage
-        |> required "timestamp" string
-        |> required "message" string
-        |> required "is_error" bool
-        |> required "is_warning" bool
-
-
-userUploadInstanceDecoder : Decoder UserUploadInstance
-userUploadInstanceDecoder =
-    Decode.succeed UserUploadInstance
-        |> required "id" int
-        |> required "user" userDecoder
-        |> required "ticket" int
-        |> required "created_on" string
-        |> required "simulation" userUploadSimulationDecoder
-
-
-userUploadSimulationDecoder : Decoder UserUploadSimulation
-userUploadSimulationDecoder =
-    Decode.succeed UserUploadSimulation
+simulationDecoder : Decoder Simulation
+simulationDecoder =
+    Decode.succeed Simulation
         |> required "md_repo_id" string
         |> required "guid" string
         |> required "description" (nullable string)
@@ -182,6 +126,16 @@ userUploadSimulationDecoder =
         |> required "uploaded_files" (list uploadedFileDecoder)
 
 
+type alias UploadedFile =
+    { id : Int
+    , isPrimary : Bool
+    , fileName : String
+    , fileType : String
+    , description : Maybe String
+    , fileSizeBytes : Maybe Int
+    }
+
+
 uploadedFileDecoder : Decoder UploadedFile
 uploadedFileDecoder =
     Decode.succeed UploadedFile
@@ -189,91 +143,19 @@ uploadedFileDecoder =
         |> required "primary" bool
         |> required "filename" string
         |> required "file_type" string
-        |> required "description" string
-        |> required "file_size_bytes" string
-
-
-uploadTokenDecoder : Decoder UploadToken
-uploadTokenDecoder =
-    Decode.succeed UploadToken
-        |> required "token" string
-        |> required "orcid" string
+        |> optional "description" (nullable string) Nothing
+        |> optional "file_size_bytes" (nullable int) Nothing
 
 
 init : Shared.Model -> () -> ( Model, Effect Msg )
 init shared () =
-    let
-        _ =
-            Debug.log "url" <| shared.apiHost ++ "/getUserUploadTickets"
-    in
     ( initialModel
     , Effect.sendCmd <|
         Http.get
-            { url = shared.apiHost ++ "/getUserUploadTickets"
-            , expect = Http.expectJson GotUploadTickets decodeRequest
+            { url = shared.apiHost ++ "/getUploadInstances"
+            , expect = Http.expectJson GotUploadInstances uploadInstancesResultDecoder
             }
     )
-
-
-
-{-
-   APP-RWW13NTJYYZHV0QE
-   ed987171-cb2b-4203-a2f7-60e8d5dd58d7
-   requestData shared =
-       let
-           headers =
-               case shared.csrfToken of
-                   Just token ->
-                       [ Http.header "X-CSRFTOKEN" token ]
-
-                   _ ->
-                       []
-       in
-       Effect.sendCmd <|
-           Http.request
-               { method = "GET"
-               , headers = headers
-               , url = shared.apiHost ++ "/getUserUploadTickets"
-               , body = Http.emptyBody
-               , expect = Http.expectJson GotUploadTickets decodeRequest
-               , timeout = Nothing
-               , tracker = Nothing
-               }
-
--}
-
-
-requestUploadToken shared model =
-    let
-        headers =
-            case shared.csrfToken of
-                Just token ->
-                    [ Http.header "X-CSRFTOKEN" token ]
-
-                _ ->
-                    []
-
-        _ =
-            Debug.log "request" <| uploadTokenRequestEncoder model
-    in
-    Effect.sendCmd <|
-        Http.request
-            { method = "POST"
-            , headers = [ Http.header "Content-Type" "application/json" ] ++ headers
-            , url = shared.apiHost ++ "/uploads"
-            , body = Http.jsonBody <| uploadTokenRequestEncoder model
-            , expect = Http.expectJson GotUploadToken uploadTokenDecoder
-            , timeout = Nothing
-            , tracker = Nothing
-            }
-
-
-uploadTokenRequestEncoder : Model -> Value
-uploadTokenRequestEncoder model =
-    Encode.object
-        [ ( "is_admin_token", Encode.bool model.isAdminToken )
-        , ( "submissions", Encode.int model.numberUploads )
-        ]
 
 
 
@@ -281,73 +163,20 @@ uploadTokenRequestEncoder model =
 
 
 type Msg
-    = DialogClose
-    | DialogShow
-    | GotUploadTickets (Result Http.Error UserUploadTicketsResult)
-    | GotUploadToken (Result Http.Error UploadToken)
-    | RequestUploadToken
-    | SetNumberUploads String
-    | SetIsAdminToken Bool
+    = GotUploadInstances (Result Http.Error UploadInstancesResult)
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
     case msg of
-        DialogClose ->
-            ( { model | showDialog = False }
+        GotUploadInstances (Ok result) ->
+            ( { model | uploadInstancesResult = Just result }
             , Effect.none
             )
 
-        DialogShow ->
-            ( { model | showDialog = True }
-            , Effect.none
-            )
-
-        GotUploadTickets (Ok result) ->
-            let
-                _ =
-                    Debug.log "result" result
-            in
-            ( { model | userUploadTicketsResult = Just result }
-            , Effect.setErrorMessage Nothing
-            )
-
-        GotUploadTickets (Err err) ->
-            let
-                _ =
-                    Debug.log "err" err
-            in
-            ( { model | userUploadTicketsResult = Nothing }
+        GotUploadInstances (Err err) ->
+            ( { model | uploadInstancesResult = Nothing }
             , Effect.setErrorMessage (Just (Api.toUserFriendlyMessage err))
-            )
-
-        GotUploadToken (Ok result) ->
-            ( { model | uploadToken = Just result }
-            , Effect.none
-            )
-
-        GotUploadToken (Err err) ->
-            ( { model | uploadToken = Nothing, showDialog = False }
-            , Effect.setErrorMessage (Just (Api.toUserFriendlyMessage err))
-            )
-
-        SetIsAdminToken newValue ->
-            ( { model | isAdminToken = newValue }
-            , Effect.none
-            )
-
-        SetNumberUploads val ->
-            let
-                newNumber =
-                    Maybe.withDefault 0 (String.toInt val)
-            in
-            ( { model | numberUploads = newNumber }
-            , Effect.none
-            )
-
-        RequestUploadToken ->
-            ( model
-            , requestUploadToken shared model
             )
 
 
@@ -368,47 +197,63 @@ view : Shared.Model -> Model -> View Msg
 view shared model =
     Components.Header.view
         { title = "MDRepo - Upload Logs"
-        , body = viewModel model
+        , body = viewModel shared model
         , shared = shared
         }
 
 
-viewModel : Model -> List (Html.Html Msg)
-viewModel model =
+viewModel : Shared.Model -> Model -> List (Html.Html Msg)
+viewModel shared model =
     let
-        _ =
-            Debug.log "model" model
-
         table =
-            case model.userUploadTicketsResult of
+            case model.uploadInstancesResult of
                 Just result ->
-                    uploadsTable result.results
+                    uploadInstancesTable result.results
 
                 _ ->
                     Html.text "Unable to get data"
     in
     [ Html.div
-        [ class "container" ]
-        [ Html.button
-            [ class "button", onClick DialogShow ]
-            [ Html.text "Get Upload Token" ]
-        , viewDialog model
+        [ class "content" ]
+        [ Html.h1 [ class "title" ] [ Html.text "Upload Logs" ]
         , table
         ]
     ]
 
 
-uploadsTable : List UserUploadTicket -> Html.Html Msg
-uploadsTable tickets =
+uploadInstancesTable : List UploadInstance -> Html.Html Msg
+uploadInstancesTable instances =
     let
-        mkRow ticket =
+        viewSuccess value =
+            case value of
+                Just flag ->
+                    if flag then
+                        "Success"
+
+                    else
+                        "Error"
+
+                _ ->
+                    "Upload in progress"
+
+        viewSimulation sim =
+            if sim.isPlaceholder then
+                Html.text ""
+
+            else
+                Html.a
+                    [ Route.Path.href (Route.Path.Explore_Id_ { id = sim.mdRepoId }) ]
+                    [ Html.text sim.slug ]
+
+        mkRow instance =
             Html.tr []
-                [ Html.td [] [ Html.text ticket.token ]
-                , Html.td [] [ Html.text ticket.createdAt ]
-                , Html.td [] [ Html.text ticket.status ]
+                [ Html.td [] [ Html.text (viewSuccess instance.successful) ]
+                , Html.td [] [ Html.text instance.createdOn ]
+                , Html.td [] [ viewSimulation instance.simulation ]
+                , Html.td [] [ Html.text (Maybe.withDefault "" instance.filenames) ]
                 ]
     in
-    case List.length tickets of
+    case List.length instances of
         0 ->
             Html.text "No data"
 
@@ -417,77 +262,11 @@ uploadsTable tickets =
                 [ class "table" ]
                 [ Html.thead []
                     [ Html.tr []
-                        [ Html.th [] [ Html.text "Token" ]
+                        [ Html.th [] [ Html.text "Status" ]
                         , Html.th [] [ Html.text "Created On" ]
-                        , Html.th [] [ Html.text "Status" ]
+                        , Html.th [] [ Html.text "Simulation" ]
+                        , Html.th [] [ Html.text "Filenames" ]
                         ]
                     ]
-                , Html.tbody [] (List.map mkRow tickets)
+                , Html.tbody [] (List.map mkRow instances)
                 ]
-
-
-viewDialog : Model -> Html.Html Msg
-viewDialog model =
-    let
-        body =
-            case model.uploadToken of
-                Just token ->
-                    [ Html.div [ class "cell" ]
-                        [ Html.p [] [ Html.text <| "Token = " ++ token.token ]
-                        , Html.p [] [ Html.text <| "ORCID = " ++ token.orcid ]
-                        ]
-                    ]
-
-                _ ->
-                    [ Html.div [ class "cell" ]
-                        [ Html.text "Number of Simulations:"
-                        , Html.input
-                            [ class "input"
-                            , value <| String.fromInt model.numberUploads
-                            , onInput SetNumberUploads
-                            ]
-                            []
-                        ]
-                    , Html.div [ class "cell" ]
-                        [ Html.label [ class "checkbox" ]
-                            [ Html.input
-                                [ type_ "checkbox"
-                                , checked model.isAdminToken
-                                , onCheck SetIsAdminToken
-                                ]
-                                []
-                            , Html.text "Request Admin Token"
-                            ]
-                        ]
-                    , Html.div [ class "cell" ]
-                        [ Html.button
-                            [ class "button is-success"
-                            , onClick RequestUploadToken
-                            ]
-                            [ Html.text "Get Token" ]
-                        ]
-                    ]
-    in
-    if model.showDialog then
-        Html.div [ class "modal is-active" ]
-            [ Html.div [ class "modal-background" ] []
-            , Html.div [ class "modal-card" ]
-                [ Html.header [ class "modal-card-head" ]
-                    [ Html.p [ class "modal-card-title" ]
-                        [ Html.text "Get Download Token"
-                        ]
-                    , Html.button [ class "delete", onClick DialogClose ] []
-                    ]
-                , Html.section [ class "modal-card-body" ] body
-                , Html.footer [ class "modal-card-foot" ]
-                    [ Html.div [ class "buttons" ]
-                        [ Html.button
-                            [ class "button", onClick DialogClose ]
-                            [ Html.text "Cancel" ]
-                        ]
-                    ]
-                ]
-            ]
-
-    else
-        Html.div [] []

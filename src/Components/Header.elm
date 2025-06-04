@@ -130,6 +130,8 @@ view props =
                 ]
             ]
         , errorMessage
-        , Html.div [ class "page" ] props.body
+        , Html.div
+            [ class "page" ]
+            props.body
         ]
     }
