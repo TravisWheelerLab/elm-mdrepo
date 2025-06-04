@@ -18,3 +18,4 @@ type Msg
     | Login (Maybe User)
     | Logout
     | GotUser (Result Http.Error (List User))
+    | SetErrorMessage (Maybe String)

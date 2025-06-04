@@ -17,4 +17,5 @@ type alias Model =
     , mediaHost : String
     , csrfToken : Maybe String
     , user : Maybe User
+    , errorMessage : Maybe String
     }
