@@ -50,6 +50,18 @@ view props =
                                     [ class "navbar-item" ]
                                     [ Html.a
                                         [ Route.Path.href Route.Path.Uploads ]
+                                        [ Html.text "Uploads" ]
+                                    ]
+                                , Html.div
+                                    [ class "navbar-item" ]
+                                    [ Html.a
+                                        [ Route.Path.href Route.Path.UploadLogs ]
+                                        [ Html.text "Upload Logs" ]
+                                    ]
+                                , Html.div
+                                    [ class "navbar-item" ]
+                                    [ Html.a
+                                        [ Route.Path.href Route.Path.UploadTokens ]
                                         [ Html.text "Upload Tokens" ]
                                     ]
                                 , Html.div

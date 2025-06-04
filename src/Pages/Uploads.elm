@@ -1,5 +1,8 @@
 module Pages.Uploads exposing (Model, Msg, page)
 
+-- Upload logs: getUploadInstances
+-- getUserUploadTickets
+
 import Api
 import Auth
 import Components.Header
@@ -46,7 +49,7 @@ init shared () =
     ( initialModel
     , Effect.sendCmd <|
         Http.get
-            { url = shared.apiHost ++ "/getUserDownloadTickets"
+            { url = shared.apiHost ++ "/getUserUploadTickets"
             , expect = Http.expectJson GotUploadTickets uploadTicketsResultDecoder
             }
     )
