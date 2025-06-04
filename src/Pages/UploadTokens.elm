@@ -310,10 +310,6 @@ update shared msg model =
             )
 
         GotUploadTickets (Ok result) ->
-            let
-                _ =
-                    Debug.log "result" result
-            in
             ( { model | userUploadTicketsResult = Just result }
             , Effect.setErrorMessage Nothing
             )
