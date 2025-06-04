@@ -46,7 +46,6 @@ type alias Model =
     , nextUrl : Maybe String
     , previousUrl : Maybe String
     , selectedSimulationIds : List Int
-    , error : Maybe String
     , showDownloadDialog : Bool
     , downloadFileTypes : List String
     , showDownloadFileTypes : Bool
@@ -113,7 +112,6 @@ initialModel =
     , ligandSearch = Nothing
     , nextUrl = Nothing
     , previousUrl = Nothing
-    , error = Nothing
     , selectedSimulationIds = []
     , showDownloadDialog = False
     , downloadFileTypes = []
@@ -357,7 +355,7 @@ update shared msg model =
                 , nextUrl = data.next
                 , previousUrl = data.previous
               }
-            , Effect.none
+            , Effect.setErrorMessage Nothing
             )
 
         SimulationApiResponded (Err err) ->
@@ -367,7 +365,7 @@ update shared msg model =
                 , nextUrl = Nothing
                 , previousUrl = Nothing
               }
-            , Effect.none
+            , Effect.setErrorMessage (Just (Api.toUserFriendlyMessage err))
             )
 
         UpdatePageSize newSize ->
@@ -378,7 +376,6 @@ update shared msg model =
                             { model
                                 | pageSize = size
                                 , pageNumber = 1
-                                , error = Nothing
                             }
                     in
                     ( newModel
@@ -386,10 +383,8 @@ update shared msg model =
                     )
 
                 Nothing ->
-                    ( { model
-                        | error = Just "Invalid page size"
-                      }
-                    , Effect.none
+                    ( model
+                    , Effect.setErrorMessage (Just "Invalid page size")
                     )
 
         UpdatePageNumber newNumber ->
@@ -397,20 +392,15 @@ update shared msg model =
                 Just pageNumber ->
                     let
                         newModel =
-                            { model
-                                | pageNumber = pageNumber
-                                , error = Nothing
-                            }
+                            { model | pageNumber = pageNumber }
                     in
                     ( newModel
                     , requestData shared newModel
                     )
 
                 Nothing ->
-                    ( { model
-                        | error = Just "Invalid page number"
-                      }
-                    , Effect.none
+                    ( model
+                    , Effect.setErrorMessage (Just "Invalid page number")
                     )
 
         UpdateTextSearch newText ->
@@ -494,8 +484,7 @@ view shared model =
                         ]
 
                 RemoteData.Failure err ->
-                    Html.div [ class "has-text-centered p-6" ]
-                        [ Html.text <| Api.toUserFriendlyMessage err ]
+                    Html.div [] []
 
                 _ ->
                     Html.div [ class "has-text-centered p-6" ]

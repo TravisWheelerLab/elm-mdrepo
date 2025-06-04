@@ -31,15 +31,13 @@ page user shared route =
 
 
 type alias Model =
-    { error : Maybe String
-    , uploadTickets : Maybe UploadTicketsResult
+    { uploadTickets : Maybe UploadTicketsResult
     }
 
 
 initialModel : Model
 initialModel =
-    { error = Nothing
-    , uploadTickets = Nothing
+    { uploadTickets = Nothing
     }
 
 
@@ -71,11 +69,8 @@ update msg model =
             )
 
         GotUploadTickets (Err error) ->
-            ( { model
-                | uploadTickets = Nothing
-                , error = Just <| Api.toUserFriendlyMessage error
-              }
-            , pushRoutePath Route.Path.Profile
+            ( { model | uploadTickets = Nothing }
+            , Effect.setErrorMessage (Just <| Api.toUserFriendlyMessage error)
             )
 
 
