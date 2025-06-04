@@ -21,7 +21,7 @@ page : Auth.User -> Shared.Model -> Route () -> Page Model Msg
 page user shared route =
     Page.new
         { init = init shared
-        , update = update
+        , update = update shared
         , subscriptions = subscriptions
         , view = view shared
         }
@@ -32,15 +32,13 @@ page user shared route =
 
 
 type alias Model =
-    { error : Maybe String
-    , downloads : Maybe Downloads
+    { downloads : Maybe Downloads
     }
 
 
 initialModel : Model
 initialModel =
-    { error = Nothing
-    , downloads = Nothing
+    { downloads = Nothing
     }
 
 
@@ -63,8 +61,8 @@ type Msg
     = GotDownloads (Result Http.Error Downloads)
 
 
-update : Msg -> Model -> ( Model, Effect Msg )
-update msg model =
+update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
+update shared msg model =
     case msg of
         GotDownloads (Ok downloads) ->
             ( { model | downloads = Just downloads }
@@ -72,11 +70,8 @@ update msg model =
             )
 
         GotDownloads (Err error) ->
-            ( { model
-                | downloads = Nothing
-                , error = Just <| Api.toUserFriendlyMessage error
-              }
-            , pushRoutePath Route.Path.Profile
+            ( { model | downloads = Nothing }
+            , Effect.setErrorMessage (Just (Api.toUserFriendlyMessage error))
             )
 
 
