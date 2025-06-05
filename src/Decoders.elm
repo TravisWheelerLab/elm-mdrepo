@@ -180,7 +180,7 @@ unvalidatedBiomoleculeDecoder : Decoder UnvalidatedBiomolecule
 unvalidatedBiomoleculeDecoder =
     Decode.succeed UnvalidatedBiomolecule
         |> required "molecule_id" string
-        |> required "molecule_id_type" (nullable string)
+        |> optional "molecule_id_type" (nullable string) Nothing
 
 
 downloadInstanceDecoder : Decoder DownloadInstance

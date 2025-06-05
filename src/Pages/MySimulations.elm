@@ -2,7 +2,7 @@ module Pages.MySimulations exposing (Model, Msg, page)
 
 import Api
 import Components.Header
-import Decoders exposing (paperDecoder, processedFileDecoder, replicateGroupDecoder, unvalidatedBiomoleculeDecoder, uploadedFileDecoder, userDecoder)
+import Decoders exposing (contributionDecoder, ligandDecoder, paperDecoder, processedFileDecoder, replicateGroupDecoder, unvalidatedBiomoleculeDecoder, uploadedFileDecoder, userDecoder)
 import Effect exposing (Effect)
 import Html
 import Html.Attributes exposing (class)
@@ -13,7 +13,7 @@ import Page exposing (Page)
 import Route exposing (Route)
 import Route.Path
 import Shared
-import Types exposing (Paper, ProcessedFile, ReplicateGroup, UploadedFile, User)
+import Types exposing (Contribution, Ligand, Paper, ProcessedFile, ReplicateGroup, UnvalidatedBiomolecule, UploadedFile, User)
 import View exposing (View)
 
 
@@ -66,37 +66,34 @@ type alias Simulation =
     , runCommands : Maybe String
     , waterType : Maybe String
     , waterDensity : Maybe Int
-    , duration : Maybe Int
-    , samplingFrequence : Maybe Int
+    , duration : Maybe Float
+    , samplingFrequence : Maybe Float
     , integrationTimestepFs : Maybe Int
     , software : Maybe Software
-    , ligands : Maybe String
-    , contributions : Maybe String
+    , ligands : List Ligand
+    , contributions : List Contribution
     , biomolecules : List Biomolecule
     , creationDate : Maybe String
-
-    {-
-       , unvalidatedBiomolecules : List UnvalidatedBiomolecule
-       , solvents : String
-       , papers : List Paper
-       , rmsdValues : List Float
-       , rmsfValues : List Float
-       , createdBy : User
-       , replicate : Int
-       , total_replicates : Int
-       , replicateGroup : ReplicateGroup
-       , forceField : String
-       , forceFieldComments : String
-       , uploadedFiles : List UploadedFile
-       , processedFiles : List ProcessedFile
-       , displayTrajectoryFile : ProcessedFile
-       , displayStructureFile : ProcessedFile
-       , fastaSequence : String
-       , temperature : Int
-       , protonationMethod : String
-       , displayTrajectoryFileNFrames : Int
-       , canEdit : Bool
-    -}
+    , solvents : List String
+    , papers : List Paper
+    , rmsdValues : List Float
+    , rmsfValues : List Float
+    , createdBy : Maybe User
+    , replicate : Maybe Int
+    , total_replicates : Maybe Int
+    , replicateGroup : Maybe ReplicateGroup
+    , forceField : Maybe String
+    , forceFieldComments : Maybe String
+    , uploadedFiles : List UploadedFile
+    , processedFiles : List ProcessedFile
+    , displayTrajectoryFile : Maybe ProcessedFile
+    , displayStructureFile : Maybe ProcessedFile
+    , fastaSequence : Maybe String
+    , temperature : Maybe Int
+    , protonationMethod : Maybe String
+    , displayTrajectoryFileNFrames : Maybe Int
+    , canEdit : Maybe Bool
+    , unvalidatedBiomolecules : List UnvalidatedBiomolecule
     }
 
 
@@ -116,39 +113,34 @@ simulationDecoder =
         |> optional "run_commands" (nullable string) Nothing
         |> optional "water_type" (nullable string) Nothing
         |> optional "water_density" (nullable int) Nothing
-        |> optional "duration" (nullable int) Nothing
-        |> optional "sampling_frequency" (nullable int) Nothing
+        |> optional "duration" (nullable float) Nothing
+        |> optional "sampling_frequency" (nullable float) Nothing
         |> optional "integration_timestep_fs" (nullable int) Nothing
         |> optional "software" (nullable softwareDecoder) Nothing
-        |> optional "ligands" (nullable string) Nothing
-        |> optional "contributions" (nullable string) Nothing
+        |> optional "ligands" (list ligandDecoder) []
+        |> optional "contributions" (list contributionDecoder) []
         |> optional "biomolecules" (list biomoleculeDecoder) []
         |> optional "creation_date" (nullable string) Nothing
-
-
-
-{-
-   |> required "unvalidated_biomolecules" (list unvalidatedBiomoleculeDecoder)
-   |> required "solvents" string
-   |> required "papers" (list paperDecoder)
-   |> required "rmsd_values" (list float)
-   |> required "rmsf_values" (list float)
-   |> required "created_by" userDecoder
-   |> required "replicate" int
-   |> required "total_replicates" int
-   |> required "replicate_group" replicateGroupDecoder
-   |> required "force_field" string
-   |> required "force_field_comments" string
-   |> required "uploaded_files" (list uploadedFileDecoder)
-   |> required "processed_files" (list processedFileDecoder)
-   |> required "display_trajectory_file" processedFileDecoder
-   |> required "display_structure_file" processedFileDecoder
-   |> required "fasta_sequence" string
-   |> required "temperature" int
-   |> required "protonation_method" string
-   |> required "display_trajectory_file_n_frames" int
-   |> required "can_edit" bool
--}
+        |> optional "solvents" (list string) []
+        |> optional "papers" (list paperDecoder) []
+        |> optional "rmsd_values" (list float) []
+        |> optional "rmsf_values" (list float) []
+        |> optional "created_by" (nullable userDecoder) Nothing
+        |> optional "replicate" (nullable int) Nothing
+        |> optional "total_replicates" (nullable int) Nothing
+        |> optional "replicate_group" (nullable replicateGroupDecoder) Nothing
+        |> optional "force_field" (nullable string) Nothing
+        |> optional "force_field_comments" (nullable string) Nothing
+        |> optional "uploaded_files" (list uploadedFileDecoder) []
+        |> optional "processed_files" (list processedFileDecoder) []
+        |> optional "display_trajectory_file" (nullable processedFileDecoder) Nothing
+        |> optional "display_structure_file" (nullable processedFileDecoder) Nothing
+        |> optional "fasta_sequence" (nullable string) Nothing
+        |> optional "temperature" (nullable int) Nothing
+        |> optional "protonation_method" (nullable string) Nothing
+        |> optional "display_trajectory_file_n_frames" (nullable int) Nothing
+        |> optional "can_edit" (nullable bool) Nothing
+        |> optional "unvalidated_biomolecules" (list unvalidatedBiomoleculeDecoder) []
 
 
 type alias Software =
@@ -183,19 +175,6 @@ biomoleculeDecoder =
         |> required "uniprot_id" (nullable string)
         |> required "pdb_id" (nullable string)
         |> required "primary_molecule_id_type" string
-
-
-type alias UnvalidatedBiomolecule =
-    { moleculeId : String
-    , moleculeIdType : String
-    }
-
-
-unlvalidatedBiomoleculeDecoder : Decoder UnvalidatedBiomolecule
-unlvalidatedBiomoleculeDecoder =
-    Decode.succeed UnvalidatedBiomolecule
-        |> required "molecule_id" string
-        |> required "molecule_id_type" string
 
 
 initialModel : Model
@@ -269,10 +248,12 @@ viewModel shared model =
                 _ ->
                     Html.text "Unable to get data"
     in
-    [ Html.div
-        [ class "content" ]
-        [ Html.h1 [ class "title" ] [ Html.text "My Simulations" ]
-        , table
+    [ Html.div [ class "box" ]
+        [ Html.div
+            [ class "content" ]
+            [ Html.h1 [ class "title" ] [ Html.text "My Simulations" ]
+            , table
+            ]
         ]
     ]
 
@@ -291,10 +272,17 @@ simulationsTable simulations =
 
         mkRow simulation =
             Html.tr []
-                [ Html.td [] [ Html.text simulation.guid ]
+                [ Html.td [] [ viewSimulation simulation ]
+                , Html.td []
+                    [ Html.text <|
+                        if simulation.isRestricted then
+                            "No"
 
-                --[ Html.td [] [ viewSimulation simulation.simulation ]
-                --, Html.td [] [ Html.text simulation.creationDate ]
+                        else
+                            "Yes"
+                    ]
+                , Html.td [] [ Html.text (Maybe.withDefault "" simulation.creationDate) ]
+                , Html.td [] [ Html.text (Maybe.withDefault "" simulation.shortDescription) ]
                 ]
     in
     case List.length simulations of
@@ -307,8 +295,9 @@ simulationsTable simulations =
                 [ Html.thead []
                     [ Html.tr []
                         [ Html.th [] [ Html.text "Simulation" ]
-
-                        --, Html.th [] [ Html.text "Created On" ]
+                        , Html.th [] [ Html.text "Public" ]
+                        , Html.th [] [ Html.text "Created On" ]
+                        , Html.th [] [ Html.text "Description" ]
                         ]
                     ]
                 , Html.tbody [] (List.map mkRow simulations)
