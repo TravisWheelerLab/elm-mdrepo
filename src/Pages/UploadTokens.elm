@@ -1,6 +1,7 @@
 module Pages.UploadTokens exposing (Model, Msg, page)
 
 import Api
+import Common exposing (copyIcon)
 import Components.Header
 import Decoders exposing (userDecoder)
 import Effect exposing (Effect)
@@ -274,7 +275,7 @@ uploadTokenRequestEncoder model =
 
 
 type Msg
-    = CopyUploadTokenToClipboard
+    = CopyToClipboard String
     | DialogClose
     | DialogShow
     | GotUploadTickets (Result Http.Error UserUploadTicketsResult)
@@ -287,20 +288,11 @@ type Msg
 update : Shared.Model -> Msg -> Model -> ( Model, Effect Msg )
 update shared msg model =
     case msg of
-        CopyUploadTokenToClipboard ->
-            let
-                cmd =
-                    case model.uploadToken of
-                        Just token ->
-                            Effect.copyToClipboard token.token
-
-                        _ ->
-                            Effect.none
-            in
-            ( model, cmd )
+        CopyToClipboard text ->
+            ( model, Effect.copyToClipboard text )
 
         DialogClose ->
-            ( { model | showDialog = False }
+            ( { model | uploadToken = Nothing, showDialog = False }
             , Effect.none
             )
 
@@ -411,13 +403,28 @@ viewModel shared model =
     ]
 
 
+
+{-
+   copyIcon copyText msg =
+       Html.span [ class "icon", onClick (CopyToClipboard copyText) ]
+           [ Html.i [ class "fa-regular fa-copy fa-border" ] []
+           ]
+-}
+
+
 uploadsTable : List UserUploadTicket -> Html.Html Msg
 uploadsTable tickets =
     let
         mkRow ticket =
             Html.tr []
-                [ Html.td [] [ Html.text ticket.token ]
-                , Html.td [] [ Html.text ticket.orcid ]
+                [ Html.td []
+                    [ Html.text ticket.token
+                    , copyIcon (CopyToClipboard ticket.token)
+                    ]
+                , Html.td []
+                    [ Html.text ticket.orcid
+                    , copyIcon (CopyToClipboard ticket.orcid)
+                    ]
                 , Html.td [] [ Html.text <| String.fromInt ticket.nSubmissions ]
                 , Html.td [] [ Html.text ticket.createdAt ]
                 , Html.td [] [ Html.text ticket.status ]
@@ -450,13 +457,23 @@ viewDialog model =
             case model.uploadToken of
                 Just token ->
                     [ Html.div [ class "cell" ]
-                        [ Html.p []
-                            [ Html.text <| "Token = " ++ token.token
-                            , Html.button
-                                [ class "button", onClick CopyUploadTokenToClipboard ]
-                                [ Html.text "Copy to clipboard" ]
+                        [ Html.table [ class "table" ]
+                            [ Html.thead []
+                                [ Html.tr []
+                                    [ Html.th [] [ Html.text "Token" ]
+                                    , Html.th [] [ Html.text "ORCID" ]
+                                    ]
+                                ]
+                            , Html.tbody []
+                                [ Html.tr []
+                                    [ Html.td [] [ Html.text token.token, copyIcon (CopyToClipboard token.token) ]
+                                    , Html.td [] [ Html.text token.orcid, copyIcon (CopyToClipboard token.orcid) ]
+                                    ]
+                                ]
                             ]
-                        , Html.p [] [ Html.text <| "ORCID = " ++ token.orcid ]
+                        , Html.text "Enter this token when prompted by the "
+                        , Html.code [] [ Html.text "mdrepo submit" ]
+                        , Html.text "command on your server."
                         ]
                     ]
 
@@ -505,7 +522,7 @@ viewDialog model =
                     [ Html.div [ class "buttons" ]
                         [ Html.button
                             [ class "button", onClick DialogClose ]
-                            [ Html.text "Cancel" ]
+                            [ Html.text "Close" ]
                         ]
                     ]
                 ]
