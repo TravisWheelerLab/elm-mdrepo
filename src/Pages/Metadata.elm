@@ -3,6 +3,8 @@ module Pages.Metadata exposing (Model, Msg, page)
 import Bootstrap.Tab as Tab
 import Bootstrap.Table as Table
 import Components.Header
+import Date
+import DatePicker exposing (DateEvent(..), defaultSettings)
 import Effect exposing (Effect)
 import Html
 import Html.Attributes exposing (class, cols, rows, value)
@@ -30,28 +32,46 @@ page shared route =
 
 type alias Model =
     { tabState : Tab.State
+    , datePicker : DatePicker.DatePicker
     , simulation : Simulation
     }
 
 
-defaultSimulation =
-    { shortDescription = "" }
-
-
-initialModel =
-    { tabState = Tab.initialState
-    , simulation = defaultSimulation
+type alias Simulation =
+    { shortDescription : String
+    , date : Maybe Date.Date
     }
 
 
-type alias Simulation =
-    { shortDescription : String }
+defaultSimulation =
+    { shortDescription = ""
+    , date = Nothing
+    }
+
+
+datePickerSettings : DatePicker.Settings
+datePickerSettings =
+    { defaultSettings
+        | inputClassList = [ ( "form-control", True ) ]
+        , inputId = Just "datepicker"
+    }
 
 
 init : () -> ( Model, Effect Msg )
 init () =
+    let
+        ( datePicker, datePickerCmd ) =
+            DatePicker.init
+
+        initialModel : Model
+        initialModel =
+            { tabState = Tab.initialState
+            , datePicker = datePicker
+            , simulation = defaultSimulation
+            }
+    in
     ( initialModel
-    , Effect.none
+    , Effect.sendCmd <| Cmd.map SetDatePicker datePickerCmd
     )
 
 
@@ -62,6 +82,7 @@ init () =
 type Msg
     = TabMsg Tab.State
     | UpdateShortDesc String
+    | SetDatePicker DatePicker.Msg
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
@@ -81,6 +102,32 @@ update msg model =
 
         TabMsg state ->
             ( { model | tabState = state }
+            , Effect.none
+            )
+
+        SetDatePicker subMsg ->
+            let
+                ( newDatePicker, dateEvent ) =
+                    DatePicker.update datePickerSettings subMsg model.datePicker
+
+                simulation =
+                    model.simulation
+
+                newDate =
+                    case dateEvent of
+                        Picked val ->
+                            Just val
+
+                        _ ->
+                            simulation.date
+
+                newSimulation =
+                    { simulation | date = newDate }
+            in
+            ( { model
+                | simulation = newSimulation
+                , datePicker = newDatePicker
+              }
             , Effect.none
             )
 
@@ -158,6 +205,17 @@ paneSimulation shared model =
                             []
                         ]
                     ]
+                , Table.tr
+                    []
+                    [ Table.th [] [ Html.text "Date" ]
+                    , Table.th []
+                        [ DatePicker.view
+                            model.simulation.date
+                            datePickerSettings
+                            model.datePicker
+                            |> Html.map SetDatePicker
+                        ]
+                    ]
                 ]
         }
 
@@ -167,6 +225,9 @@ paneToml shared model =
     let
         sim =
             model.simulation
+
+        date =
+            Maybe.withDefault "" <| Maybe.map Date.toIsoString sim.date
     in
     Html.div [ class "content" ]
         [ Html.textarea [ cols 80, rows 20 ]
@@ -174,6 +235,7 @@ paneToml shared model =
                 String.join "\n"
                     [ "[initial]"
                     , "short_description = \"" ++ sim.shortDescription ++ "\""
+                    , "date = \"" ++ date ++ "\""
                     ]
             ]
         ]
